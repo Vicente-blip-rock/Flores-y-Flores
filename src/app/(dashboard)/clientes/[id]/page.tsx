@@ -87,16 +87,27 @@ export default function ClientePage() {
       reader.onload = (e) => {
         try {
           const data = e.target?.result
-          const workbook = XLSX.read(data, { type: 'binary' })
-          const sheet = workbook.Sheets[workbook.SheetNames[0]]
-          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }) as any[][]
-          resolve(rows)
+          if (typeof data === 'string' && (data.includes(';') || file.name.endsWith('.csv'))) {
+            const lines = data.split('\n').filter(l => l.trim())
+            const sep = lines[0].includes(';') ? ';' : ','
+            const rows = lines.map(line => line.split(sep).map(c => c.trim().replace(/^"|"$/g, '')))
+            resolve(rows)
+          } else {
+            const workbook = XLSX.read(data, { type: 'binary' })
+            const sheet = workbook.Sheets[workbook.SheetNames[0]]
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }) as any[][]
+            resolve(rows)
+          }
         } catch (err) {
           reject(err)
         }
       }
       reader.onerror = reject
-      reader.readAsBinaryString(file)
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file, 'UTF-8')
+      } else {
+        reader.readAsBinaryString(file)
+      }
     })
   }
 
