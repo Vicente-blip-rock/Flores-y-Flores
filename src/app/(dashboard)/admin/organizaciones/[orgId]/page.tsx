@@ -7,7 +7,6 @@ import { useRouter, useParams } from 'next/navigation'
 export default function OrgDetallePage() {
   const [org, setOrg] = useState<any>(null)
   const [usuarios, setUsuarios] = useState<any[]>([])
-  const [planes, setPlanes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showNuevoUsuario, setShowNuevoUsuario] = useState(false)
   const [form, setForm] = useState({ nombre: '', email: '', password: '', rol: 'admin' })
@@ -31,9 +30,7 @@ export default function OrgDetallePage() {
       .from('usuarios').select('*').eq('organizacion_id', params.orgId).order('created_at')
     setUsuarios(usuariosData || [])
 
-    const { data: planesData } = await supabase
       .from('planes').select('*').eq('activo', true).order('precio_mensual')
-    setPlanes(planesData || [])
 
     setLoading(false)
   }

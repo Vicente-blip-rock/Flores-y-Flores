@@ -47,10 +47,8 @@ export default function F29Page() {
 
   // VENTAS - Debito fiscal
   const ventasAfectas = ventas.filter(v => v.tipo_doc === 33 && v.tipo_venta !== 'Activo Fijo')
-  const ventasActivoFijo = ventas.filter(v => v.tipo_doc === 33 && v.tipo_venta === 'Activo Fijo')
   const ventasExentas = ventas.filter(v => v.tipo_doc === 34)
   const notasCreditoEmitidas = ventas.filter(v => v.tipo_doc === 61)
-  const exportaciones = ventas.filter(v => v.tipo_doc === 110)
 
   const netoVentasAfectas = ventasAfectas.reduce((s, v) => s + (v.neto || 0), 0)
   const ivaDebito = ventasAfectas.reduce((s, v) => s + (v.iva || 0), 0)
