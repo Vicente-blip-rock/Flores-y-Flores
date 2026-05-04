@@ -30,7 +30,6 @@ export default function OrgDetallePage() {
       .from('usuarios').select('*').eq('organizacion_id', params.orgId).order('created_at')
     setUsuarios(usuariosData || [])
 
-      .from('planes').select('*').eq('activo', true).order('precio_mensual')
 
     setLoading(false)
   }
