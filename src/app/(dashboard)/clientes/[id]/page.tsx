@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import * as XLSX from 'xlsx'
 
 export default function ClientePage() {
   const [cliente, setCliente] = useState<any>(null)
@@ -74,9 +75,112 @@ export default function ClientePage() {
     setPeriodos(prev => prev.map(p => p.id === periodoId ? { ...p, estado: nuevoEstado } : p))
   }
 
-  const parsearNumero = (val: string) => {
-    if (!val || val.trim() === '-' || val.trim() === '') return 0
-    return parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0
+  const parsearNumero = (val: any) => {
+    if (val === null || val === undefined || val === '-' || val === '') return 0
+    const str = String(val).replace(/\./g, '').replace(',', '.')
+    return parseFloat(str) || 0
+  }
+
+  const leerArchivo = (file: File): Promise<any[][]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result
+          const workbook = XLSX.read(data, { type: 'binary' })
+          const sheet = workbook.Sheets[workbook.SheetNames[0]]
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }) as any[][]
+          resolve(rows)
+        } catch (err) {
+          reject(err)
+        }
+      }
+      reader.onerror = reject
+      reader.readAsBinaryString(file)
+    })
+  }
+
+  const parsearFecha = (val: any): string => {
+    if (!val) return new Date().toISOString().split('T')[0]
+    const str = String(val).trim()
+    // DD/MM/YYYY
+    if (str.includes('/')) {
+      const parts = str.split('/')
+      if (parts.length === 3) {
+        return `${parts[2].substring(0,4)}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`
+      }
+    }
+    // YYYY-MM-DD
+    if (str.includes('-') && str.length >= 10) {
+      return str.substring(0, 10)
+    }
+    return new Date().toISOString().split('T')[0]
+  }
+
+  const procesarFilasCompras = (rows: any[][], periodoId: string) => {
+    const headerRow = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('nro') || String(c).toLowerCase().includes('doc')))
+    const dataRows = rows.slice(headerRow + 1).filter(r => {
+      const primera = String(r[0] || '').trim()
+      return primera && !isNaN(parseInt(primera)) && !String(r[0]).toLowerCase().includes('total')
+    })
+
+    return dataRows.map((cols, idx) => ({
+      periodo_id: periodoId,
+      numero_linea: parseInt(String(cols[0])) || idx + 1,
+      tipo_doc: parseInt(String(cols[1])) || 33,
+      rut_proveedor: String(cols[2] || '').trim(),
+      razon_social: String(cols[3] || '').trim(),
+      folio: String(cols[4] || '').trim(),
+      fecha: parsearFecha(cols[5]),
+      exento: parsearNumero(cols[6]),
+      neto: parsearNumero(cols[7]),
+      iva: parsearNumero(cols[8]),
+      total: parsearNumero(cols[9]),
+      iepd: parsearNumero(cols[10]),
+    }))
+  }
+
+  const procesarFilasVentas = (rows: any[][], periodoId: string) => {
+    const headerRow = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('nro') || String(c).toLowerCase().includes('tipo')))
+    const dataRows = rows.slice(headerRow + 1).filter(r => {
+      const primera = String(r[0] || '').trim()
+      return primera && !isNaN(parseInt(primera)) && !String(r[0]).toLowerCase().includes('total')
+    })
+
+    return dataRows.map((cols, idx) => ({
+      periodo_id: periodoId,
+      numero_linea: parseInt(String(cols[0])) || idx + 1,
+      tipo_doc: parseInt(String(cols[1])) || 33,
+      tipo_venta: String(cols[2] || '').trim(),
+      rut_cliente: String(cols[3] || '').trim(),
+      razon_social: String(cols[4] || '').trim(),
+      folio: String(cols[5] || '').trim(),
+      fecha: parsearFecha(cols[6]),
+      exento: parsearNumero(cols[10]),
+      neto: parsearNumero(cols[11]),
+      iva: parsearNumero(cols[12]),
+      total: parsearNumero(cols[13]),
+      iva_retenido_total: parsearNumero(cols[14]),
+      iva_no_retenido: parsearNumero(cols[16]),
+    }))
+  }
+
+  const obtenerMesAnio = (rows: any[][], colFecha: number) => {
+    const dataRows = rows.filter(r => {
+      const primera = String(r[0] || '').trim()
+      return primera && !isNaN(parseInt(primera))
+    })
+    if (dataRows.length === 0) return null
+    const fechaStr = String(dataRows[0][colFecha] || '').trim()
+    if (fechaStr.includes('/')) {
+      const parts = fechaStr.split('/')
+      if (parts.length === 3) return { mes: parseInt(parts[1]), anio: parseInt(parts[2].substring(0,4)) }
+    }
+    if (fechaStr.includes('-')) {
+      const parts = fechaStr.split('-')
+      if (parts.length >= 3) return { mes: parseInt(parts[1]), anio: parseInt(parts[0]) }
+    }
+    return null
   }
 
   const verificarLimite = async (cantidad: number) => {
@@ -97,98 +201,15 @@ export default function ClientePage() {
     const mesActual = ahora.getMonth() + 1
     const anioActual = ahora.getFullYear()
     const limite = (org.planes as any)?.limite_documentos || 999999
-
     let docsActuales = org.documentos_mes_actual || 0
-    if (org.mes_contador !== mesActual || org.anio_contador !== anioActual) {
-      docsActuales = 0
-    }
+    if (org.mes_contador !== mesActual || org.anio_contador !== anioActual) docsActuales = 0
 
     if (docsActuales + cantidad > limite) {
-      return { ok: false, error: 'Limite de documentos del plan alcanzado (' + docsActuales + '/' + limite + '). Actualiza tu plan.' }
+      return { ok: false, error: 'Limite de documentos alcanzado (' + docsActuales + '/' + limite + ')' }
     }
 
-    await supabase.rpc('incrementar_documentos', {
-      org_id: usuario.organizacion_id,
-      cantidad
-    })
-
+    await supabase.rpc('incrementar_documentos', { org_id: usuario.organizacion_id, cantidad })
     return { ok: true }
-  }
-
-  const procesarCSVCompras = (text: string) => {
-    const lines = text.split('\n').filter(l => l.trim())
-    const separador = lines[0].includes(';') ? ';' : ','
-    const rows = lines.slice(1).filter(line => {
-      const cols = line.split(separador)
-      const primera = cols[0]?.trim().replace(/"/g, '')
-      return cols.length > 3 && !isNaN(parseInt(primera)) && !line.toLowerCase().includes('total')
-    })
-    if (rows.length === 0) return null
-    const primeraFila = rows[0].split(separador)
-    const fechaRaw = primeraFila[5]?.trim().replace(/"/g, '') || ''
-    const partes = fechaRaw.split('/')
-    const mes = partes.length === 3 ? parseInt(partes[1]) : new Date().getMonth() + 1
-    const anio = partes.length === 3 ? parseInt(partes[2]) : new Date().getFullYear()
-    const facturas = rows.map((line, idx) => {
-      const cols = line.split(separador).map(c => c.trim().replace(/"/g, ''))
-      const fechaCols = cols[5]?.split('/') || []
-      const fechaFormateada = fechaCols.length === 3
-        ? `${fechaCols[2]}-${fechaCols[1].padStart(2, '0')}-${fechaCols[0].padStart(2, '0')}`
-        : new Date().toISOString().split('T')[0]
-      return {
-        numero_linea: parseInt(cols[0]) || idx + 1,
-        tipo_doc: parseInt(cols[1]) || 33,
-        rut_proveedor: cols[2] || '',
-        razon_social: cols[3] || '',
-        folio: cols[4] || '',
-        fecha: fechaFormateada,
-        exento: parsearNumero(cols[6]),
-        neto: parsearNumero(cols[7]),
-        iva: parsearNumero(cols[8]),
-        total: parsearNumero(cols[9]),
-        iepd: parsearNumero(cols[10]),
-      }
-    })
-    return { facturas, mes, anio }
-  }
-
-  const procesarCSVVentas = (text: string) => {
-    const lines = text.split('\n').filter(l => l.trim())
-    const separador = lines[0].includes(';') ? ';' : ','
-    const rows = lines.slice(1).filter(line => {
-      const cols = line.split(separador)
-      const primera = cols[0]?.trim().replace(/"/g, '')
-      return cols.length > 3 && !isNaN(parseInt(primera)) && !line.toLowerCase().includes('total')
-    })
-    if (rows.length === 0) return null
-    const primeraFila = rows[0].split(separador)
-    const fechaRaw = primeraFila[6]?.trim().replace(/"/g, '') || ''
-    const partes = fechaRaw.split('/')
-    const mes = partes.length === 3 ? parseInt(partes[1]) : new Date().getMonth() + 1
-    const anio = partes.length === 3 ? parseInt(partes[2]) : new Date().getFullYear()
-    const ventas = rows.map((line, idx) => {
-      const cols = line.split(separador).map(c => c.trim().replace(/"/g, ''))
-      const fechaCols = cols[6]?.split('/') || []
-      const fechaFormateada = fechaCols.length === 3
-        ? `${fechaCols[2]}-${fechaCols[1].padStart(2, '0')}-${fechaCols[0].padStart(2, '0')}`
-        : new Date().toISOString().split('T')[0]
-      return {
-        numero_linea: parseInt(cols[0]) || idx + 1,
-        tipo_doc: parseInt(cols[1]) || 33,
-        tipo_venta: cols[2] || '',
-        rut_cliente: cols[3] || '',
-        razon_social: cols[4] || '',
-        folio: cols[5] || '',
-        fecha: fechaFormateada,
-        exento: parsearNumero(cols[10]),
-        neto: parsearNumero(cols[11]),
-        iva: parsearNumero(cols[12]),
-        total: parsearNumero(cols[13]),
-        iva_retenido_total: parsearNumero(cols[14]),
-        iva_no_retenido: parsearNumero(cols[16]),
-      }
-    })
-    return { ventas, mes, anio }
   }
 
   const handleCompras = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,43 +219,57 @@ export default function ClientePage() {
     setMensaje('')
     setMensajeError('')
 
-    const text = await file.text()
-    const resultado = procesarCSVCompras(text)
-    if (!resultado) {
-      setMensajeError('No se encontraron facturas en el archivo')
-      setSubiendoCompras(false)
-      return
-    }
+    try {
+      const rows = await leerArchivo(file)
+      const headerRow = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('nro')))
+      const mesAnio = obtenerMesAnio(rows.slice(headerRow + 1), 5)
 
-    const { facturas, mes, anio } = resultado
-    const limite = await verificarLimite(facturas.length)
-    if (!limite.ok) {
-      setMensajeError(limite.error || 'Error de limite')
-      setSubiendoCompras(false)
-      return
-    }
+      if (!mesAnio) {
+        setMensajeError('No se pudo determinar el mes del archivo')
+        setSubiendoCompras(false)
+        return
+      }
 
-    const { data: periodoExistente } = await supabase
-      .from('periodos').select('id').eq('cliente_id', params.id)
-      .eq('anio', anio).eq('mes', mes).single()
+      const { mes, anio } = mesAnio
 
-    let periodoId = periodoExistente?.id
-    if (!periodoId) {
-      const { data: nuevoPeriodo } = await supabase
-        .from('periodos').insert({ cliente_id: params.id, anio, mes, estado: 'borrador' })
-        .select().single()
-      periodoId = nuevoPeriodo?.id
-    }
+      const { data: periodoExistente } = await supabase
+        .from('periodos').select('id').eq('cliente_id', params.id)
+        .eq('anio', anio).eq('mes', mes).single()
 
-    const facturasConPeriodo = facturas.map(f => ({ ...f, periodo_id: periodoId }))
-    await supabase.from('facturas').delete().eq('periodo_id', periodoId)
-    const { error } = await supabase.from('facturas').insert(facturasConPeriodo)
+      let periodoId = periodoExistente?.id
+      if (!periodoId) {
+        const { data: nuevoPeriodo } = await supabase
+          .from('periodos').insert({ cliente_id: params.id, anio, mes, estado: 'borrador' })
+          .select().single()
+        periodoId = nuevoPeriodo?.id
+      }
 
-    if (error) {
-      setMensajeError('Error al guardar: ' + error.message)
-    } else {
-      setMensaje('✅ ' + facturas.length + ' compras importadas — ' + meses[mes] + ' ' + anio)
-      await cargarDatos()
+      const facturas = procesarFilasCompras(rows, periodoId)
+
+      if (facturas.length === 0) {
+        setMensajeError('No se encontraron facturas en el archivo')
+        setSubiendoCompras(false)
+        return
+      }
+
+      const limite = await verificarLimite(facturas.length)
+      if (!limite.ok) {
+        setMensajeError(limite.error || 'Error de limite')
+        setSubiendoCompras(false)
+        return
+      }
+
+      await supabase.from('facturas').delete().eq('periodo_id', periodoId)
+      const { error } = await supabase.from('facturas').insert(facturas)
+
+      if (error) {
+        setMensajeError('Error al guardar: ' + error.message)
+      } else {
+        setMensaje('✅ ' + facturas.length + ' compras importadas — ' + meses[mes] + ' ' + anio)
+        await cargarDatos()
+      }
+    } catch (err: any) {
+      setMensajeError('Error al leer el archivo: ' + err.message)
     }
     setSubiendoCompras(false)
   }
@@ -246,43 +281,57 @@ export default function ClientePage() {
     setMensaje('')
     setMensajeError('')
 
-    const text = await file.text()
-    const resultado = procesarCSVVentas(text)
-    if (!resultado) {
-      setMensajeError('No se encontraron ventas en el archivo')
-      setSubiendoVentas(false)
-      return
-    }
+    try {
+      const rows = await leerArchivo(file)
+      const headerRow = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('nro')))
+      const mesAnio = obtenerMesAnio(rows.slice(headerRow + 1), 6)
 
-    const { ventas, mes, anio } = resultado
-    const limite = await verificarLimite(ventas.length)
-    if (!limite.ok) {
-      setMensajeError(limite.error || 'Error de limite')
-      setSubiendoVentas(false)
-      return
-    }
+      if (!mesAnio) {
+        setMensajeError('No se pudo determinar el mes del archivo')
+        setSubiendoVentas(false)
+        return
+      }
 
-    const { data: periodoExistente } = await supabase
-      .from('periodos').select('id').eq('cliente_id', params.id)
-      .eq('anio', anio).eq('mes', mes).single()
+      const { mes, anio } = mesAnio
 
-    let periodoId = periodoExistente?.id
-    if (!periodoId) {
-      const { data: nuevoPeriodo } = await supabase
-        .from('periodos').insert({ cliente_id: params.id, anio, mes, estado: 'borrador' })
-        .select().single()
-      periodoId = nuevoPeriodo?.id
-    }
+      const { data: periodoExistente } = await supabase
+        .from('periodos').select('id').eq('cliente_id', params.id)
+        .eq('anio', anio).eq('mes', mes).single()
 
-    const ventasConPeriodo = ventas.map(v => ({ ...v, periodo_id: periodoId }))
-    await supabase.from('facturas_venta').delete().eq('periodo_id', periodoId)
-    const { error } = await supabase.from('facturas_venta').insert(ventasConPeriodo)
+      let periodoId = periodoExistente?.id
+      if (!periodoId) {
+        const { data: nuevoPeriodo } = await supabase
+          .from('periodos').insert({ cliente_id: params.id, anio, mes, estado: 'borrador' })
+          .select().single()
+        periodoId = nuevoPeriodo?.id
+      }
 
-    if (error) {
-      setMensajeError('Error al guardar: ' + error.message)
-    } else {
-      setMensaje('✅ ' + ventas.length + ' ventas importadas — ' + meses[mes] + ' ' + anio)
-      await cargarDatos()
+      const ventas = procesarFilasVentas(rows, periodoId)
+
+      if (ventas.length === 0) {
+        setMensajeError('No se encontraron ventas en el archivo')
+        setSubiendoVentas(false)
+        return
+      }
+
+      const limite = await verificarLimite(ventas.length)
+      if (!limite.ok) {
+        setMensajeError(limite.error || 'Error de limite')
+        setSubiendoVentas(false)
+        return
+      }
+
+      await supabase.from('facturas_venta').delete().eq('periodo_id', periodoId)
+      const { error } = await supabase.from('facturas_venta').insert(ventas)
+
+      if (error) {
+        setMensajeError('Error al guardar: ' + error.message)
+      } else {
+        setMensaje('✅ ' + ventas.length + ' ventas importadas — ' + meses[mes] + ' ' + anio)
+        await cargarDatos()
+      }
+    } catch (err: any) {
+      setMensajeError('Error al leer el archivo: ' + err.message)
     }
     setSubiendoVentas(false)
   }
@@ -311,7 +360,7 @@ export default function ClientePage() {
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900">{cliente?.nombre}</h2>
-          <p className="text-gray-500 text-sm">{cliente?.rut} · {cliente?.tipo === 'empresa' ? 'Persona Natural' : 'Empresa'}</p>
+          <p className="text-gray-500 text-sm">{cliente?.rut} · {cliente?.tipo === 'empresa' ? 'Empresa' : 'Persona Natural'}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -319,9 +368,9 @@ export default function ClientePage() {
             <h3 className="font-medium text-gray-900 mb-4">📥 Libro de Compras SII</h3>
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-blue-400 transition">
               <span className="text-3xl mb-2">📂</span>
-              <span className="text-gray-600 font-medium text-sm">Subir CSV de compras</span>
-              <span className="text-gray-400 text-xs mt-1">RCV_COMPRA_*.csv</span>
-              <input type="file" accept=".csv" onChange={handleCompras} className="hidden" />
+              <span className="text-gray-600 font-medium text-sm">Subir libro de compras</span>
+              <span className="text-gray-400 text-xs mt-1">CSV o Excel (.csv, .xlsx, .xls)</span>
+              <input type="file" accept=".csv,.xlsx,.xls" onChange={handleCompras} className="hidden" />
             </label>
             {subiendoCompras && <p className="text-blue-600 text-sm mt-3 text-center">Procesando...</p>}
           </div>
@@ -330,9 +379,9 @@ export default function ClientePage() {
             <h3 className="font-medium text-gray-900 mb-4">📤 Libro de Ventas SII</h3>
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-green-400 transition">
               <span className="text-3xl mb-2">📂</span>
-              <span className="text-gray-600 font-medium text-sm">Subir CSV de ventas</span>
-              <span className="text-gray-400 text-xs mt-1">RCV_VENTA_*.csv</span>
-              <input type="file" accept=".csv" onChange={handleVentas} className="hidden" />
+              <span className="text-gray-600 font-medium text-sm">Subir libro de ventas</span>
+              <span className="text-gray-400 text-xs mt-1">CSV o Excel (.csv, .xlsx, .xls)</span>
+              <input type="file" accept=".csv,.xlsx,.xls" onChange={handleVentas} className="hidden" />
             </label>
             {subiendoVentas && <p className="text-green-600 text-sm mt-3 text-center">Procesando...</p>}
           </div>
@@ -347,26 +396,26 @@ export default function ClientePage() {
 
         {periodos.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center">
-            <p className="text-gray-400 text-lg">No hay períodos aún</p>
-            <p className="text-gray-400 text-sm mt-1">Importa un CSV del SII para comenzar</p>
+            <p className="text-gray-400 text-lg">No hay periodos aun</p>
+            <p className="text-gray-400 text-sm mt-1">Importa un archivo del SII para comenzar</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b">
-              <h3 className="font-medium text-gray-900">Períodos</h3>
+              <h3 className="font-medium text-gray-900">Periodos</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="text-left px-6 py-3 font-medium text-gray-500">Período</th>
+                    <th className="text-left px-6 py-3 font-medium text-gray-500">Periodo</th>
                     <th className="text-center px-3 py-3 font-medium text-gray-500">Compras</th>
                     <th className="text-center px-3 py-3 font-medium text-gray-500">Ventas</th>
                     <th className="text-right px-3 py-3 font-medium text-gray-500">Neto Compras</th>
-                    <th className="text-right px-3 py-3 font-medium text-gray-500">IVA Crédito</th>
+                    <th className="text-right px-3 py-3 font-medium text-gray-500">IVA Credito</th>
                     <th className="text-right px-3 py-3 font-medium text-gray-500">Neto Ventas</th>
-                    <th className="text-right px-3 py-3 font-medium text-gray-500">IVA Débito</th>
-                    <th className="text-center px-3 py-3 font-medium text-gray-500">Clasificación</th>
+                    <th className="text-right px-3 py-3 font-medium text-gray-500">IVA Debito</th>
+                    <th className="text-center px-3 py-3 font-medium text-gray-500">Clasificacion</th>
                     <th className="text-center px-3 py-3 font-medium text-gray-500">Estado</th>
                     <th className="px-3 py-3"></th>
                   </tr>

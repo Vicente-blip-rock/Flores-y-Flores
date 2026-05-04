@@ -71,7 +71,7 @@ export default function NuevoClientePage() {
               name="nombre"
               value={form.nombre}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               placeholder="Razón social o nombre completo"
             />
           </div>
@@ -82,7 +82,7 @@ export default function NuevoClientePage() {
               name="rut"
               value={form.rut}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               placeholder="12345678-9"
             />
           </div>
@@ -93,7 +93,7 @@ export default function NuevoClientePage() {
               name="tipo"
               value={form.tipo}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             >
               <option value="empresa">Empresa</option>
               <option value="persona_natural">Persona Natural</option>
@@ -107,7 +107,7 @@ export default function NuevoClientePage() {
               type="email"
               value={form.email}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               placeholder="cliente@email.com"
             />
           </div>
@@ -118,7 +118,7 @@ export default function NuevoClientePage() {
               name="telefono"
               value={form.telefono}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               placeholder="+56 9 1234 5678"
             />
           </div>
@@ -129,7 +129,7 @@ export default function NuevoClientePage() {
               name="direccion"
               value={form.direccion}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               placeholder="Calle 123, Ciudad"
             />
           </div>
