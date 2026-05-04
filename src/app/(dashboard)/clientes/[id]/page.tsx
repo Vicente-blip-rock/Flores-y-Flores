@@ -103,40 +103,58 @@ export default function ClientePage() {
   const parsearFecha = (val: any): string => {
     if (!val) return new Date().toISOString().split('T')[0]
     const str = String(val).trim()
-    // DD/MM/YYYY
+    if (str.match(/^\d{4}-\d{2}-\d{2}/)) return str.substring(0, 10)
     if (str.includes('/')) {
       const parts = str.split('/')
       if (parts.length === 3) {
-        return `${parts[2].substring(0,4)}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`
+        const anio = parts[2].substring(0,4)
+        return anio + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0')
       }
-    }
-    // YYYY-MM-DD
-    if (str.includes('-') && str.length >= 10) {
-      return str.substring(0, 10)
     }
     return new Date().toISOString().split('T')[0]
   }
 
   const procesarFilasCompras = (rows: any[][], periodoId: string) => {
-    const headerRow = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('nro') || String(c).toLowerCase().includes('doc')))
+    const headerRow = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('nro')))
+    const headers = (rows[headerRow] || []).map((h: any) => String(h).toLowerCase().trim())
+
+    const col = (nombres: string[]) => {
+      for (const nombre of nombres) {
+        const idx = headers.findIndex(h => h.includes(nombre))
+        if (idx !== -1) return idx
+      }
+      return -1
+    }
+
+    const nroCol = col(['nro'])
+    const docCol = col(['tipo doc', 'doc'])
+    const rutCol = col(['rut prov', 'rut pro'])
+    const razonCol = col(['razon social', 'razon'])
+    const folioCol = col(['folio'])
+    const fechaCol = col(['fecha docto', 'fecha '])
+    const exentoCol = col(['monto exento', 'exento'])
+    const netoCol = col(['monto neto', ' neto'])
+    const ivaCol = col(['monto iva recuperable', ' iva '])
+    const totalCol = col(['monto total', ' total'])
+
     const dataRows = rows.slice(headerRow + 1).filter(r => {
-      const primera = String(r[0] || '').trim()
-      return primera && !isNaN(parseInt(primera)) && !String(r[0]).toLowerCase().includes('total')
+      const primera = String(r[nroCol >= 0 ? nroCol : 0] || '').trim()
+      return primera && !isNaN(parseInt(primera)) && !primera.toLowerCase().includes('total')
     })
 
     return dataRows.map((cols, idx) => ({
       periodo_id: periodoId,
-      numero_linea: parseInt(String(cols[0])) || idx + 1,
-      tipo_doc: parseInt(String(cols[1])) || 33,
-      rut_proveedor: String(cols[2] || '').trim(),
-      razon_social: String(cols[3] || '').trim(),
-      folio: String(cols[4] || '').trim(),
-      fecha: parsearFecha(cols[5]),
-      exento: parsearNumero(cols[6]),
-      neto: parsearNumero(cols[7]),
-      iva: parsearNumero(cols[8]),
-      total: parsearNumero(cols[9]),
-      iepd: parsearNumero(cols[10]),
+      numero_linea: parseInt(String(cols[nroCol >= 0 ? nroCol : 0])) || idx + 1,
+      tipo_doc: parseInt(String(cols[docCol >= 0 ? docCol : 1])) || 33,
+      rut_proveedor: String(cols[rutCol >= 0 ? rutCol : 2] || '').trim(),
+      razon_social: String(cols[razonCol >= 0 ? razonCol : 3] || '').trim(),
+      folio: String(cols[folioCol >= 0 ? folioCol : 4] || '').trim(),
+      fecha: parsearFecha(cols[fechaCol >= 0 ? fechaCol : 5]),
+      exento: parsearNumero(cols[exentoCol >= 0 ? exentoCol : 6]),
+      neto: parsearNumero(cols[netoCol >= 0 ? netoCol : 7]),
+      iva: parsearNumero(cols[ivaCol >= 0 ? ivaCol : 8]),
+      total: parsearNumero(cols[totalCol >= 0 ? totalCol : 9]),
+      iepd: 0,
     }))
   }
 
