@@ -59,11 +59,22 @@ export default function PeriodoPage() {
         setBusquedaCuenta('')
       }
     }
-    if (editando) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
+    if (editando) document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [editando])
+
+  const guardarClasificacionAprendida = async (rut_proveedor: string, razon_social: string, tipo_compra: string) => {
+    const { data: usuario } = await supabase.from('usuarios').select('organizacion_id').single()
+    if (!usuario) return
+    await supabase.from('clasificaciones_aprendidas').upsert({
+      organizacion_id: usuario.organizacion_id,
+      cliente_id: params.id,
+      rut_proveedor,
+      razon_social,
+      tipo_compra,
+      ultima_vez: new Date().toISOString()
+    }, { onConflict: 'organizacion_id,rut_proveedor,cliente_id' })
+  }
 
   const clasificarConIA = async () => {
     const sinClasificar = facturas.filter(f => !f.tipo_compra)
@@ -71,34 +82,68 @@ export default function PeriodoPage() {
       setMensaje('Todas las facturas ya estan clasificadas')
       return
     }
+
     setClasificando(true)
     setMensaje('Clasificando ' + sinClasificar.length + ' facturas con IA...')
-    try {
-      const res = await fetch('/api/clasificar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ facturas: sinClasificar, plan_cuentas: planCuentas })
-      })
-      const data = await res.json()
-      if (data.error) {
-        setMensaje('Error: ' + data.error)
+
+    const { data: historialCliente } = await supabase
+      .from('clasificaciones_aprendidas')
+      .select('rut_proveedor, tipo_compra')
+      .eq('cliente_id', params.id)
+
+    const historialMap: Record<string, string> = {}
+    if (historialCliente) {
+      historialCliente.forEach((h: any) => { historialMap[h.rut_proveedor] = h.tipo_compra })
+    }
+
+    const sinHistorial = sinClasificar.filter(f => !historialMap[f.rut_proveedor])
+    const conHistorial = sinClasificar.filter(f => historialMap[f.rut_proveedor])
+
+    // Clasificar con historial directamente
+    for (const f of conHistorial) {
+      await supabase.from('facturas').update({
+        tipo_compra: historialMap[f.rut_proveedor],
+        clasificado_por: 'confirmado'
+      }).eq('id', f.id)
+    }
+
+    let clasificadasIA = 0
+    if (sinHistorial.length > 0) {
+      try {
+        const res = await fetch('/api/clasificar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ facturas: sinHistorial, plan_cuentas: planCuentas, cliente_id: params.id })
+        })
+        const data = await res.json()
+        if (!data.error) {
+          for (const item of data.clasificaciones) {
+            await supabase.from('facturas').update({
+              tipo_compra: item.tipo_compra,
+              clasificado_por: 'ia',
+              ia_confianza: 0.85
+            }).eq('id', item.id)
+
+            const factura = sinHistorial.find((f: any) => f.id === item.id)
+            if (factura) {
+              await guardarClasificacionAprendida(factura.rut_proveedor, factura.razon_social, item.tipo_compra)
+            }
+          }
+          clasificadasIA = data.clasificaciones.length
+        }
+      } catch {
+        setMensaje('Error de conexion con la IA')
         setClasificando(false)
         return
       }
-      for (const item of data.clasificaciones) {
-        await supabase.from('facturas').update({
-          tipo_compra: item.tipo_compra,
-          clasificado_por: 'ia',
-          ia_confianza: 0.85
-        }).eq('id', item.id)
-      }
-      const { data: actualizadas } = await supabase
-        .from('facturas').select('*').eq('periodo_id', params.periodoId).order('numero_linea')
-      setFacturas(actualizadas || [])
-      setMensaje('Listo: ' + data.clasificaciones.length + ' facturas clasificadas')
-    } catch {
-      setMensaje('Error de conexion con la IA')
     }
+
+    const { data: actualizadas } = await supabase
+      .from('facturas').select('*').eq('periodo_id', params.periodoId).order('numero_linea')
+    setFacturas(actualizadas || [])
+
+    const total = conHistorial.length + clasificadasIA
+    setMensaje('Listo: ' + conHistorial.length + ' con historial + ' + clasificadasIA + ' con IA = ' + total + ' clasificadas')
     setClasificando(false)
   }
 
@@ -107,6 +152,12 @@ export default function PeriodoPage() {
       tipo_compra: cuenta,
       clasificado_por: 'manual'
     }).eq('id', facturaId)
+
+    const factura = facturas.find(f => f.id === facturaId)
+    if (factura) {
+      await guardarClasificacionAprendida(factura.rut_proveedor, factura.razon_social, cuenta)
+    }
+
     setFacturas(prev => prev.map(f =>
       f.id === facturaId ? { ...f, tipo_compra: cuenta, clasificado_por: 'manual' } : f
     ))
@@ -241,7 +292,7 @@ export default function PeriodoPage() {
                             placeholder="Buscar cuenta..."
                             value={busquedaCuenta}
                             onChange={e => setBusquedaCuenta(e.target.value)}
-                            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-900"
+                            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-900 placeholder-gray-400"
                           />
                           <div className="max-h-56 overflow-y-auto">
                             {cuentasFiltradas.length === 0 ? (
@@ -268,6 +319,8 @@ export default function PeriodoPage() {
                             <span className={
                               f.clasificado_por === 'ia'
                                 ? 'px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                : f.clasificado_por === 'confirmado'
+                                ? 'px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200'
                                 : 'px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200'
                             }>
                               {f.tipo_compra}
