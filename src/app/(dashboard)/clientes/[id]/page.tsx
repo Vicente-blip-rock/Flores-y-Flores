@@ -195,19 +195,32 @@ export default function ClientePage() {
   }
 
   const obtenerMesAnio = (rows: any[][], colFecha: number) => {
-    const dataRows = rows.filter(r => {
+    const headerRow = rows.findIndex(r =>
+      r.some(c => String(c).toLowerCase().includes('nro'))
+    )
+    const headers = (rows[headerRow] || []).map((h: any) => String(h).toLowerCase().trim())
+    let fechaColIdx = headers.findIndex(h => h.includes('fecha docto'))
+    if (fechaColIdx === -1) fechaColIdx = headers.findIndex(h => h.includes('fecha'))
+    if (fechaColIdx === -1) fechaColIdx = colFecha
+
+    const dataRows = rows.slice(headerRow + 1).filter(r => {
       const primera = String(r[0] || '').trim()
       return primera && !isNaN(parseInt(primera))
     })
     if (dataRows.length === 0) return null
-    const fechaStr = String(dataRows[0][colFecha] || '').trim()
-    if (fechaStr.includes('/')) {
-      const parts = fechaStr.split('/')
-      if (parts.length === 3) return { mes: parseInt(parts[1]), anio: parseInt(parts[2].substring(0,4)) }
-    }
-    if (fechaStr.includes('-')) {
-      const parts = fechaStr.split('-')
-      if (parts.length >= 3) return { mes: parseInt(parts[1]), anio: parseInt(parts[0]) }
+
+    for (let i = fechaColIdx; i < Math.min(fechaColIdx + 5, (dataRows[0] || []).length); i++) {
+      const fechaStr = String(dataRows[0][i] || '').trim()
+      if (fechaStr.includes('/')) {
+        const parts = fechaStr.split('/')
+        if (parts.length === 3 && parts[2].length >= 4) {
+          return { mes: parseInt(parts[1]), anio: parseInt(parts[2].substring(0,4)) }
+        }
+      }
+      if (fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const parts = fechaStr.split('-')
+        return { mes: parseInt(parts[1]), anio: parseInt(parts[0]) }
+      }
     }
     return null
   }
