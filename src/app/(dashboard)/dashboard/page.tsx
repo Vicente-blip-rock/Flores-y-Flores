@@ -63,12 +63,20 @@ export default function DashboardPage() {
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900">Clientes</h2>
-          <button
-            onClick={() => router.push('/clientes/nuevo')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-          >
-            + Nuevo cliente
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.push('/carga-masiva')}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition"
+            >
+              📂 Carga masiva
+            </button>
+            <button
+              onClick={() => router.push('/clientes/nuevo')}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+            >
+              + Nuevo cliente
+            </button>
+          </div>
         </div>
 
         {clientes.length === 0 ? (
