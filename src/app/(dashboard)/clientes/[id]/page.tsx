@@ -155,6 +155,7 @@ export default function ClientePage() {
       return primera && !isNaN(parseInt(primera)) && !primera.toLowerCase().includes('total')
     })
 
+    if (dataRows.length > 0) console.log('Primera fila raw:', JSON.stringify(dataRows[0]))
     return dataRows.map((cols, idx) => ({
       periodo_id: periodoId,
       numero_linea: parseInt(String(cols[nroCol >= 0 ? nroCol : 0])) || idx + 1,
