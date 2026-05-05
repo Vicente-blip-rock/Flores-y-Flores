@@ -146,9 +146,9 @@ export default function ClientePage() {
     const exentoCol = col(['monto exento', 'exento'])
     const netoCol = col(['monto neto', ' neto'])
     const ivaCol = col(['monto iva recuperable', 'iva recuperable', ' iva ', 'monto iva'])
-    console.log('Headers:', headers)
-    console.log('Cols detectados - neto:', netoCol, 'iva:', ivaCol, 'total:', totalCol)
     const totalCol = col(['monto total', ' total'])
+    console.log('Headers:', JSON.stringify(headers))
+    console.log('Cols - neto:', netoCol, 'iva:', ivaCol, 'total:', totalCol)
 
     const dataRows = rows.slice(headerRow + 1).filter(r => {
       const primera = String(r[nroCol >= 0 ? nroCol : 0] || '').trim()
