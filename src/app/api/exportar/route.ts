@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const workbook = XLSX.utils.book_new()
 
   // HOJA 1 - Libro clasificado
-  const libroData = [
+  const libroData: any[][] = [
     ['Nro', 'Doc', 'RUT Proveedor', 'Razon Social', 'Folio', 'Fecha', 'Exento', 'Neto', 'IVA', 'Total', 'Cuenta']
   ]
 
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     resumen[cuenta].cantidad += 1
   })
 
-  const resumenData = [
+  const resumenData: any[][] = [
     ['Cuenta', 'Facturas', 'Exento', 'Neto', 'IVA', 'Total']
   ]
 
