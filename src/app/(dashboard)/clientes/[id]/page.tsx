@@ -276,7 +276,7 @@ export default function ClientePage() {
 
       const { data: periodoExistente } = await supabase
         .from('periodos').select('id').eq('cliente_id', params.id)
-        .eq('anio', anio).eq('mes', mes).single()
+        .eq('anio', anio).eq('mes', mes).maybeSingle()
 
       let periodoId = periodoExistente?.id
       if (!periodoId) {
@@ -338,7 +338,7 @@ export default function ClientePage() {
 
       const { data: periodoExistente } = await supabase
         .from('periodos').select('id').eq('cliente_id', params.id)
-        .eq('anio', anio).eq('mes', mes).single()
+        .eq('anio', anio).eq('mes', mes).maybeSingle()
 
       let periodoId = periodoExistente?.id
       if (!periodoId) {
