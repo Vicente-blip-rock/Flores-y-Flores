@@ -16,6 +16,21 @@ export default function ResumenPage() {
   const meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
+  const exportarExcel = async () => {
+    const res = await fetch('/api/exportar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ facturas, cliente, periodo, meses })
+    })
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = (cliente?.nombre || 'libro') + '_' + (meses[periodo?.mes] || '') + '_' + (periodo?.anio || '') + '.xlsx'
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
   useEffect(() => {
     const cargar = async () => {
       const { data: periodoData } = await supabase
@@ -76,6 +91,12 @@ export default function ResumenPage() {
       <nav className="bg-white border-b px-6 py-4 flex justify-between items-center">
         <h1 className="text-lg font-bold text-gray-900">Asesorias Flores y Flores</h1>
         <div className="flex gap-4">
+          <button
+            onClick={exportarExcel}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition"
+          >
+            📥 Exportar Excel
+          </button>
           <button
             onClick={() => router.push('/clientes/' + params.id + '/periodos/' + params.periodoId)}
             className="text-sm text-blue-600 hover:text-blue-800 font-medium"
