@@ -148,15 +148,12 @@ export default function ClientePage() {
     const ivaCol = col(['monto iva recuperable', 'iva recuperable', ' iva ', 'monto iva'])
     const ivaNoRecCol = col(['monto iva no recuperable', 'iva no recuperable'])
     const totalCol = col(['monto total', ' total'])
-    console.log('Headers:', JSON.stringify(headers))
-    console.log('Cols - neto:', netoCol, 'iva:', ivaCol, 'total:', totalCol)
 
     const dataRows = rows.slice(headerRow + 1).filter(r => {
       const primera = String(r[nroCol >= 0 ? nroCol : 0] || '').trim()
       return primera && !isNaN(parseInt(primera)) && !primera.toLowerCase().includes('total')
     })
 
-    if (dataRows.length > 0) console.log('Primera fila raw:', JSON.stringify(dataRows[0]))
     return dataRows.map((cols, idx) => ({
       periodo_id: periodoId,
       numero_linea: parseInt(String(cols[nroCol >= 0 ? nroCol : 0])) || idx + 1,
