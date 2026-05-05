@@ -10,6 +10,11 @@ export default function ResumenPage() {
   const [cliente, setCliente] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const [cuentasExpandidas, setCuentasExpandidas] = useState<Record<string, boolean>>({})
+
+  const toggleCuenta = (cuenta: string) => {
+    setCuentasExpandidas(prev => ({ ...prev, [cuenta]: !prev[cuenta] }))
+  }
   const params = useParams()
   const supabase = createClient()
 
@@ -180,20 +185,41 @@ export default function ResumenPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {resumenPorCuenta().map(([cuenta, datos]) => (
-                <tr key={cuenta} className={cuenta === 'SIN CLASIFICAR' ? 'bg-yellow-50' : 'hover:bg-gray-50'}>
-                  <td className="px-6 py-3 font-medium text-gray-900">
-                    {cuenta === 'SIN CLASIFICAR' ? (
-                      <span className="text-yellow-600">{cuenta}</span>
-                    ) : cuenta}
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-500">{datos.cantidad}</td>
-                  <td className="px-4 py-3 text-right text-gray-600">{formatNum(datos.exento)}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{formatNum(datos.neto)}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{formatNum(datos.iva)}</td>
-                  <td className="px-6 py-3 text-right font-bold text-gray-900">{formatNum(datos.total)}</td>
-                </tr>
-              ))}
+              {resumenPorCuenta().map(([cuenta, datos]) => {
+                const facturasDeEstaCuenta = facturas.filter(f => (f.tipo_compra || 'SIN CLASIFICAR') === cuenta)
+                const expandida = cuentasExpandidas[cuenta]
+                return (
+                  <>
+                    <tr
+                      key={cuenta}
+                      className={(cuenta === 'SIN CLASIFICAR' ? 'bg-yellow-50' : 'hover:bg-gray-50') + ' cursor-pointer'}
+                      onClick={() => toggleCuenta(cuenta)}
+                    >
+                      <td className="px-6 py-3 font-medium text-gray-900">
+                        <span className="mr-2 text-gray-400">{expandida ? '▼' : '▶'}</span>
+                        {cuenta === 'SIN CLASIFICAR' ? (
+                          <span className="text-yellow-600">{cuenta}</span>
+                        ) : cuenta}
+                      </td>
+                      <td className="px-4 py-3 text-center text-gray-500">{datos.cantidad}</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{formatNum(datos.exento)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{formatNum(datos.neto)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{formatNum(datos.iva)}</td>
+                      <td className="px-6 py-3 text-right font-bold text-gray-900">{formatNum(datos.total)}</td>
+                    </tr>
+                    {expandida && facturasDeEstaCuenta.map(f => (
+                      <tr key={f.id} className="bg-blue-50 text-xs">
+                        <td className="px-10 py-2 text-gray-600">{f.razon_social}</td>
+                        <td className="px-4 py-2 text-center text-gray-400">{f.folio}</td>
+                        <td className="px-4 py-2 text-right text-gray-500">{formatNum(f.exento || 0)}</td>
+                        <td className="px-4 py-2 text-right text-gray-600">{formatNum(f.neto || 0)}</td>
+                        <td className="px-4 py-2 text-right text-gray-600">{formatNum(f.iva || 0)}</td>
+                        <td className="px-6 py-2 text-right text-gray-700">{formatNum(f.total || 0)}</td>
+                      </tr>
+                    ))}
+                  </>
+                )
+              })}
             </tbody>
             <tfoot className="border-t-2 border-gray-200 bg-gray-50">
               <tr>
