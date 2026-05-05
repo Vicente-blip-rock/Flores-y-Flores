@@ -1,73 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ExcelJS from 'exceljs'
+import * as XLSX from 'xlsx'
 
 export async function POST(req: NextRequest) {
   const { facturas, cliente, periodo, meses } = await req.json()
 
-  const workbook = new ExcelJS.Workbook()
+  const workbook = XLSX.utils.book_new()
 
   // HOJA 1 - Libro clasificado
-  const sheet1 = workbook.addWorksheet('Libro Clasificado')
-
-  sheet1.columns = [
-    { header: 'Nro', key: 'nro', width: 6 },
-    { header: 'Doc', key: 'doc', width: 6 },
-    { header: 'RUT Proveedor', key: 'rut', width: 16 },
-    { header: 'Razon Social', key: 'razon', width: 35 },
-    { header: 'Folio', key: 'folio', width: 12 },
-    { header: 'Fecha', key: 'fecha', width: 12 },
-    { header: 'Exento', key: 'exento', width: 12 },
-    { header: 'Neto', key: 'neto', width: 12 },
-    { header: 'IVA', key: 'iva', width: 12 },
-    { header: 'Total', key: 'total', width: 14 },
-    { header: 'Cuenta', key: 'cuenta', width: 30 },
+  const libroData = [
+    ['Nro', 'Doc', 'RUT Proveedor', 'Razon Social', 'Folio', 'Fecha', 'Exento', 'Neto', 'IVA', 'Total', 'Cuenta']
   ]
 
-  sheet1.getRow(1).font = { bold: true }
-  sheet1.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } }
-  sheet1.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
-
   facturas.forEach((f: any, idx: number) => {
-    sheet1.addRow({
-      nro: idx + 1,
-      doc: f.tipo_doc,
-      rut: f.rut_proveedor,
-      razon: f.razon_social,
-      folio: f.folio,
-      fecha: f.fecha,
-      exento: f.exento || 0,
-      neto: f.neto || 0,
-      iva: f.iva || 0,
-      total: f.total || 0,
-      cuenta: f.tipo_compra || 'SIN CLASIFICAR',
-    })
+    libroData.push([
+      idx + 1,
+      f.tipo_doc,
+      f.rut_proveedor,
+      f.razon_social,
+      f.folio,
+      f.fecha,
+      f.exento || 0,
+      f.neto || 0,
+      f.iva || 0,
+      f.total || 0,
+      f.tipo_compra || 'SIN CLASIFICAR',
+    ])
   })
 
-  // Fila de totales
-  const totalRow = sheet1.addRow({
-    nro: '',
-    doc: '',
-    rut: '',
-    razon: 'TOTALES',
-    folio: '',
-    fecha: '',
-    exento: facturas.reduce((s: number, f: any) => s + (f.exento || 0), 0),
-    neto: facturas.reduce((s: number, f: any) => s + (f.neto || 0), 0),
-    iva: facturas.reduce((s: number, f: any) => s + (f.iva || 0), 0),
-    total: facturas.reduce((s: number, f: any) => s + (f.total || 0), 0),
-    cuenta: '',
-  })
-  totalRow.font = { bold: true }
-  totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } }
+  libroData.push([
+    '', '', '', 'TOTALES', '', '',
+    facturas.reduce((s: number, f: any) => s + (f.exento || 0), 0),
+    facturas.reduce((s: number, f: any) => s + (f.neto || 0), 0),
+    facturas.reduce((s: number, f: any) => s + (f.iva || 0), 0),
+    facturas.reduce((s: number, f: any) => s + (f.total || 0), 0),
+    '',
+  ])
 
-  // Formato números
-  ['exento', 'neto', 'iva', 'total'].forEach(col => {
-    sheet1.getColumn(col).numFmt = '#,##0'
-  })
+  const sheet1 = XLSX.utils.aoa_to_sheet(libroData)
+  sheet1['!cols'] = [
+    { wch: 6 }, { wch: 6 }, { wch: 16 }, { wch: 35 }, { wch: 12 },
+    { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 30 }
+  ]
+  XLSX.utils.book_append_sheet(workbook, sheet1, 'Libro Clasificado')
 
   // HOJA 2 - Resumen por cuenta
-  const sheet2 = workbook.addWorksheet('Resumen por Cuenta')
-
   const resumen: Record<string, { exento: number, neto: number, iva: number, total: number, cantidad: number }> = {}
   facturas.forEach((f: any) => {
     const cuenta = f.tipo_compra || 'SIN CLASIFICAR'
@@ -79,48 +55,37 @@ export async function POST(req: NextRequest) {
     resumen[cuenta].cantidad += 1
   })
 
-  sheet2.columns = [
-    { header: 'Cuenta', key: 'cuenta', width: 35 },
-    { header: 'Facturas', key: 'cantidad', width: 10 },
-    { header: 'Exento', key: 'exento', width: 14 },
-    { header: 'Neto', key: 'neto', width: 14 },
-    { header: 'IVA', key: 'iva', width: 14 },
-    { header: 'Total', key: 'total', width: 14 },
+  const resumenData = [
+    ['Cuenta', 'Facturas', 'Exento', 'Neto', 'IVA', 'Total']
   ]
-
-  sheet2.getRow(1).font = { bold: true }
-  sheet2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } }
-  sheet2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
 
   Object.entries(resumen)
     .sort((a, b) => b[1].total - a[1].total)
     .forEach(([cuenta, datos]) => {
-      sheet2.addRow({ cuenta, ...datos })
+      resumenData.push([cuenta, datos.cantidad, datos.exento, datos.neto, datos.iva, datos.total])
     })
 
-  const totalRow2 = sheet2.addRow({
-    cuenta: 'TOTAL',
-    cantidad: facturas.length,
-    exento: facturas.reduce((s: number, f: any) => s + (f.exento || 0), 0),
-    neto: facturas.reduce((s: number, f: any) => s + (f.neto || 0), 0),
-    iva: facturas.reduce((s: number, f: any) => s + (f.iva || 0), 0),
-    total: facturas.reduce((s: number, f: any) => s + (f.total || 0), 0),
-  })
-  totalRow2.font = { bold: true }
-  totalRow2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } }
+  resumenData.push([
+    'TOTAL',
+    facturas.length,
+    facturas.reduce((s: number, f: any) => s + (f.exento || 0), 0),
+    facturas.reduce((s: number, f: any) => s + (f.neto || 0), 0),
+    facturas.reduce((s: number, f: any) => s + (f.iva || 0), 0),
+    facturas.reduce((s: number, f: any) => s + (f.total || 0), 0),
+  ])
 
-  ;['exento', 'neto', 'iva', 'total'].forEach(col => {
-    sheet2.getColumn(col).numFmt = '#,##0'
-  })
+  const sheet2 = XLSX.utils.aoa_to_sheet(resumenData)
+  sheet2['!cols'] = [{ wch: 35 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }]
+  XLSX.utils.book_append_sheet(workbook, sheet2, 'Resumen por Cuenta')
 
-  const buffer = await workbook.xlsx.writeBuffer()
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
   const nombreMes = meses[periodo.mes] || 'Mes'
-  const filename = `${cliente.nombre}_${nombreMes}_${periodo.anio}.xlsx`
+  const filename = (cliente.nombre || 'libro') + '_' + nombreMes + '_' + periodo.anio + '.xlsx'
 
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Disposition': 'attachment; filename="' + filename + '"',
     },
   })
 }
