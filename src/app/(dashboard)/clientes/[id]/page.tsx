@@ -146,6 +146,7 @@ export default function ClientePage() {
     const exentoCol = col(['monto exento', 'exento'])
     const netoCol = col(['monto neto', ' neto'])
     const ivaCol = col(['monto iva recuperable', 'iva recuperable', ' iva ', 'monto iva'])
+    const ivaNoRecCol = col(['monto iva no recuperable', 'iva no recuperable'])
     const totalCol = col(['monto total', ' total'])
     console.log('Headers:', JSON.stringify(headers))
     console.log('Cols - neto:', netoCol, 'iva:', ivaCol, 'total:', totalCol)
@@ -166,7 +167,7 @@ export default function ClientePage() {
       fecha: parsearFecha(cols[fechaCol >= 0 ? fechaCol : 5]),
       exento: parsearNumero(cols[exentoCol >= 0 ? exentoCol : 6]),
       neto: parsearNumero(cols[netoCol >= 0 ? netoCol : 7]),
-      iva: parsearNumero(cols[ivaCol >= 0 ? ivaCol : 8]),
+      iva: parsearNumero(cols[ivaCol >= 0 ? ivaCol : 8]) + parsearNumero(cols[ivaNoRecCol >= 0 ? ivaNoRecCol : -1]),
       total: parsearNumero(cols[totalCol >= 0 ? totalCol : 9]),
       iepd: 0,
     }))
