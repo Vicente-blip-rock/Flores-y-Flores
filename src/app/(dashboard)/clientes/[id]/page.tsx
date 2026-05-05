@@ -145,7 +145,7 @@ export default function ClientePage() {
     const fechaCol = col(['fecha docto', 'fecha '])
     const exentoCol = col(['monto exento', 'exento'])
     const netoCol = col(['monto neto', ' neto'])
-    const ivaCol = col(['monto iva recuperable', ' iva '])
+    const ivaCol = col(['monto iva recuperable', 'iva recuperable', ' iva ', 'monto iva'])
     const totalCol = col(['monto total', ' total'])
 
     const dataRows = rows.slice(headerRow + 1).filter(r => {
