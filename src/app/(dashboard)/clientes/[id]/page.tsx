@@ -16,8 +16,6 @@ export default function ClientePage() {
   const [mensajeError, setMensajeError] = useState('')
   const [editandoPeriodo, setEditandoPeriodo] = useState<string | null>(null)
   const [periodoForm, setPeriodoForm] = useState({ mes: 1, anio: 2026 })
-  const [editandoPeriodo, setEditandoPeriodo] = useState<string | null>(null)
-  const [periodoForm, setPeriodoForm] = useState({ mes: 1, anio: 2026 })
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
@@ -77,12 +75,6 @@ export default function ClientePage() {
     await cargarDatos()
   }
 
-  const guardarPeriodo = async (periodoId: string) => {
-    await supabase.from('periodos').update({ mes: periodoForm.mes, anio: periodoForm.anio }).eq('id', periodoId)
-    setPeriodos(prev => prev.map(p => p.id === periodoId ? { ...p, mes: periodoForm.mes, anio: periodoForm.anio } : p))
-    setEditandoPeriodo(null)
-    await cargarDatos()
-  }
 
   const cambiarEstado = async (periodoId: string, estadoActual: string) => {
     const siguiente: Record<string, string> = {
