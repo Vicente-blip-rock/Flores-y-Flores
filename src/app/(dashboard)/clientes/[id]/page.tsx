@@ -423,9 +423,25 @@ export default function ClientePage() {
       </nav>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">{cliente?.nombre}</h2>
-          <p className="text-gray-500 text-sm">{cliente?.rut} · {cliente?.tipo === 'empresa' ? 'Empresa' : 'Persona Natural'}</p>
+        <div className="mb-6 flex justify-between items-start">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">{cliente?.nombre}</h2>
+            <p className="text-gray-500 text-sm">{cliente?.rut} · {cliente?.tipo === 'empresa' ? 'Empresa' : 'Persona Natural'}{cliente?.rubro ? ' · ' + cliente.rubro : ''}</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.push('/clientes/' + params.id + '/cuentas')}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+            >
+              Definir cuentas
+            </button>
+            <button
+              onClick={() => router.push('/clientes/' + params.id + '/editar')}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+            >
+              Editar cliente
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
