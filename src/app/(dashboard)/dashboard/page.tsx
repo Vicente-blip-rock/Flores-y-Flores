@@ -8,8 +8,17 @@ export default function DashboardPage() {
   const [clientes, setClientes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [eliminando, setEliminando] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
+
+  const eliminarCliente = async (id: string, nombre: string) => {
+    if (!confirm('Estas seguro que deseas eliminar a ' + nombre + '? Esta accion no se puede deshacer.')) return
+    setEliminando(id)
+    await supabase.from('clientes').delete().eq('id', id)
+    setClientes(prev => prev.filter(c => c.id !== id))
+    setEliminando(null)
+  }
 
   useEffect(() => {
     const checkSession = async () => {
@@ -114,12 +123,27 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => router.push('/clientes/' + cliente.id)}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        Ver →
-                      </button>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={() => router.push('/clientes/' + cliente.id)}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          Ver →
+                        </button>
+                        <button
+                          onClick={() => router.push('/clientes/' + cliente.id + '/editar')}
+                          className="text-gray-500 hover:text-gray-700 text-sm font-medium"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => eliminarCliente(cliente.id, cliente.nombre)}
+                          disabled={eliminando === cliente.id}
+                          className="text-red-500 hover:text-red-700 text-sm font-medium disabled:opacity-50"
+                        >
+                          {eliminando === cliente.id ? '...' : 'Eliminar'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
