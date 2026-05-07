@@ -177,7 +177,18 @@ export default function ClientePage() {
       iva: parsearNumero(cols[ivaCol >= 0 ? ivaCol : 8]) + parsearNumero(cols[ivaNoRecCol >= 0 ? ivaNoRecCol : -1]),
       total: parsearNumero(cols[totalCol >= 0 ? totalCol : 9]),
       iepd: 0,
-    }))
+    })).map((f: any) => {
+      if (f.tipo_doc === 61) {
+        return {
+          ...f,
+          exento: f.exento > 0 ? -f.exento : f.exento,
+          neto: f.neto > 0 ? -f.neto : f.neto,
+          iva: f.iva > 0 ? -f.iva : f.iva,
+          total: f.total > 0 ? -f.total : f.total,
+        }
+      }
+      return f
+    })
   }
 
   const procesarFilasVentas = (rows: any[][], periodoId: string) => {
