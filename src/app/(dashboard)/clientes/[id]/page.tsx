@@ -195,7 +195,19 @@ export default function ClientePage() {
     }))
   }
 
-  const obtenerMesAnio = (rows: any[][], colFecha: number) => {
+  const mesAnioDesdeNombre = (fileName: string) => {
+    const match = fileName.match(/(\d{4})(\d{2})\./)
+    if (match) return { anio: parseInt(match[1]), mes: parseInt(match[2]) }
+    const match2 = fileName.match(/(\d{4})(\d{2})/)
+    if (match2) return { anio: parseInt(match2[1]), mes: parseInt(match2[2]) }
+    return null
+  }
+
+  const obtenerMesAnio = (rows: any[][], colFecha: number, fileName?: string) => {
+    if (fileName) {
+      const fromName = mesAnioDesdeNombre(fileName)
+      if (fromName) return fromName
+    }
     const headerRow = rows.findIndex(r =>
       r.some(c => String(c).toLowerCase().includes('nro'))
     )
@@ -265,7 +277,7 @@ export default function ClientePage() {
     try {
       const rows = await leerArchivo(file)
       const headerRow = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('nro')))
-      const mesAnio = obtenerMesAnio(rows.slice(headerRow + 1), 5)
+      const mesAnio = obtenerMesAnio(rows.slice(headerRow + 1), 5, file.name)
 
       if (!mesAnio) {
         setMensajeError('No se pudo determinar el mes del archivo')
@@ -327,7 +339,7 @@ export default function ClientePage() {
     try {
       const rows = await leerArchivo(file)
       const headerRow = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes('nro')))
-      const mesAnio = obtenerMesAnio(rows.slice(headerRow + 1), 6)
+      const mesAnio = obtenerMesAnio(rows.slice(headerRow + 1), 6, file.name)
 
       if (!mesAnio) {
         setMensajeError('No se pudo determinar el mes del archivo')
