@@ -14,6 +14,10 @@ export default function ClientePage() {
   const [subiendoVentas, setSubiendoVentas] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [mensajeError, setMensajeError] = useState('')
+  const [editandoPeriodo, setEditandoPeriodo] = useState<string | null>(null)
+  const [periodoForm, setPeriodoForm] = useState({ mes: 1, anio: 2026 })
+  const [editandoPeriodo, setEditandoPeriodo] = useState<string | null>(null)
+  const [periodoForm, setPeriodoForm] = useState({ mes: 1, anio: 2026 })
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
@@ -65,6 +69,20 @@ export default function ClientePage() {
   }
 
   useEffect(() => { cargarDatos() }, [])
+
+  const guardarPeriodo = async (periodoId: string) => {
+    await supabase.from('periodos').update({ mes: periodoForm.mes, anio: periodoForm.anio }).eq('id', periodoId)
+    setPeriodos(prev => prev.map(p => p.id === periodoId ? { ...p, mes: periodoForm.mes, anio: periodoForm.anio } : p))
+    setEditandoPeriodo(null)
+    await cargarDatos()
+  }
+
+  const guardarPeriodo = async (periodoId: string) => {
+    await supabase.from('periodos').update({ mes: periodoForm.mes, anio: periodoForm.anio }).eq('id', periodoId)
+    setPeriodos(prev => prev.map(p => p.id === periodoId ? { ...p, mes: periodoForm.mes, anio: periodoForm.anio } : p))
+    setEditandoPeriodo(null)
+    await cargarDatos()
+  }
 
   const cambiarEstado = async (periodoId: string, estadoActual: string) => {
     const siguiente: Record<string, string> = {
@@ -482,11 +500,40 @@ export default function ClientePage() {
                     const completo = r.total_compras > 0 && r.sin_clasificar === 0
                     return (
                       <tr key={p.id} className="hover:bg-gray-50 transition">
-                        <td
-                          className="px-6 py-4 font-medium text-blue-600 cursor-pointer hover:text-blue-800"
-                          onClick={() => router.push('/clientes/' + params.id + '/periodos/' + p.id + '/resumen')}
-                        >
-                          {meses[p.mes]} {p.anio}
+                        <td className="px-6 py-4 font-medium text-blue-600">
+                          {editandoPeriodo === p.id ? (
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={periodoForm.mes}
+                                onChange={e => setPeriodoForm({ ...periodoForm, mes: parseInt(e.target.value) })}
+                                className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-900"
+                              >
+                                {meses.slice(1).map((m, i) => (
+                                  <option key={i+1} value={i+1}>{m}</option>
+                                ))}
+                              </select>
+                              <input
+                                type="number"
+                                value={periodoForm.anio}
+                                onChange={e => setPeriodoForm({ ...periodoForm, anio: parseInt(e.target.value) })}
+                                className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 w-20"
+                              />
+                              <button onClick={() => guardarPeriodo(p.id)} className="text-green-600 text-xs font-medium">Guardar</button>
+                              <button onClick={() => setEditandoPeriodo(null)} className="text-gray-400 text-xs">X</button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="cursor-pointer hover:text-blue-800" onClick={() => router.push('/clientes/' + params.id + '/periodos/' + p.id + '/resumen')}>
+                                {meses[p.mes]} {p.anio}
+                              </span>
+                              <button
+                                onClick={() => { setEditandoPeriodo(p.id); setPeriodoForm({ mes: p.mes, anio: p.anio }) }}
+                                className="text-gray-400 hover:text-gray-600 text-xs"
+                              >
+                                editar
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-4 text-center text-gray-600">{r.total_compras ?? '-'}</td>
                         <td className="px-3 py-4 text-center text-gray-600">{r.total_ventas ?? '-'}</td>
