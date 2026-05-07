@@ -4,7 +4,7 @@ import OpenAI from 'openai'
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 export async function POST(req: NextRequest) {
-  const { facturas, plan_cuentas, cliente_id, organizacion_id } = await req.json()
+  const { facturas, plan_cuentas, cliente_id, organizacion_id, rubro } = await req.json()
 
   const historial = facturas.map((f: any) => {
     return '- ID: ' + f.id + ' | Proveedor: ' + f.razon_social + ' | RUT: ' + f.rut_proveedor + ' | Neto: ' + f.neto
@@ -12,7 +12,8 @@ export async function POST(req: NextRequest) {
 
   const cuentas = plan_cuentas.join(', ')
 
-  const prompt = 'Eres un asistente contable chileno experto en clasificacion de facturas.\n\n' +
+  const contexto = rubro ? 'El cliente es una empresa del rubro: ' + rubro + '. Considera este rubro al clasificar cada factura.\n\n' : ''
+  const prompt = 'Eres un asistente contable chileno experto en clasificacion de facturas.\n\n' + contexto +
     'Tu tarea es clasificar cada factura en una de las siguientes cuentas contables:\n' +
     cuentas + '\n\n' +
     'Facturas a clasificar:\n' +

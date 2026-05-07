@@ -113,7 +113,7 @@ export default function PeriodoPage() {
         const res = await fetch('/api/clasificar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ facturas: sinHistorial, plan_cuentas: planCuentas, cliente_id: params.id })
+          body: JSON.stringify({ facturas: sinHistorial, plan_cuentas: planCuentas, cliente_id: params.id, rubro: cliente?.rubro })
         })
         const data = await res.json()
         if (!data.error) {
