@@ -30,9 +30,11 @@ export default function NuevoClientePage() {
     setLoading(true)
     setError('')
 
+    const { data: { user } } = await supabase.auth.getUser()
     const { data: usuario } = await supabase
       .from('usuarios')
       .select('organizacion_id')
+      .eq('id', user?.id)
       .single()
 
     const { error } = await supabase.from('clientes').insert({
