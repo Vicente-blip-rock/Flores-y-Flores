@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation'
 
 export default function ResumenPage() {
   const [facturas, setFacturas] = useState<any[]>([])
+  const [ventas, setVentas] = useState<any[]>([])
   const [periodo, setPeriodo] = useState<any>(null)
   const [cliente, setCliente] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -25,7 +26,7 @@ export default function ResumenPage() {
     const res = await fetch('/api/exportar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ facturas, cliente, periodo, meses })
+      body: JSON.stringify({ facturas, ventas, cliente, periodo, meses })
     })
     const blob = await res.blob()
     const url = window.URL.createObjectURL(blob)
@@ -49,6 +50,10 @@ export default function ResumenPage() {
       const { data: facturasData } = await supabase
         .from('facturas').select('*').eq('periodo_id', params.periodoId)
       setFacturas(facturasData || [])
+
+      const { data: ventasData } = await supabase
+        .from('facturas_venta').select('*').eq('periodo_id', params.periodoId)
+      setVentas(ventasData || [])
       setLoading(false)
     }
     cargar()

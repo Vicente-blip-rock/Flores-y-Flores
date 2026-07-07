@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 
 export async function POST(req: NextRequest) {
-  const { facturas, cliente, periodo, meses } = await req.json()
+  const { facturas, ventas, cliente, periodo, meses } = await req.json()
 
   const workbook = XLSX.utils.book_new()
 
@@ -77,6 +77,40 @@ export async function POST(req: NextRequest) {
   const sheet2 = XLSX.utils.aoa_to_sheet(resumenData)
   sheet2['!cols'] = [{ wch: 35 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }]
   XLSX.utils.book_append_sheet(workbook, sheet2, 'Resumen por Cuenta')
+
+  // HOJA 3 - Libro de ventas
+  if (ventas && ventas.length > 0) {
+    const ventasData: any[][] = [
+      ['Nro', 'Doc', 'RUT Cliente', 'Razon Social', 'Folio', 'Fecha', 'Exento', 'Neto', 'IVA', 'Total']
+    ]
+
+    ventas.forEach((v: any, idx: number) => {
+      ventasData.push([
+        idx + 1,
+        v.tipo_doc,
+        v.rut_cliente,
+        v.razon_social,
+        v.folio,
+        v.fecha,
+        v.exento || 0,
+        v.neto || 0,
+        v.iva || 0,
+        v.total || 0,
+      ])
+    })
+
+    ventasData.push([
+      '', '', '', 'TOTALES', '', '',
+      ventas.reduce((s: number, v: any) => s + (v.exento || 0), 0),
+      ventas.reduce((s: number, v: any) => s + (v.neto || 0), 0),
+      ventas.reduce((s: number, v: any) => s + (v.iva || 0), 0),
+      ventas.reduce((s: number, v: any) => s + (v.total || 0), 0),
+    ])
+
+    const sheet3 = XLSX.utils.aoa_to_sheet(ventasData)
+    sheet3['!cols'] = [{ wch: 6 }, { wch: 6 }, { wch: 16 }, { wch: 35 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 }]
+    XLSX.utils.book_append_sheet(workbook, sheet3, 'Libro Ventas')
+  }
 
   const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
   const nombreMes = meses[periodo.mes] || 'Mes'
