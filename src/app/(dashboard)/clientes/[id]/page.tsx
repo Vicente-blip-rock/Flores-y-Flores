@@ -232,10 +232,16 @@ export default function ClientePage() {
   }
 
   const mesAnioDesdeNombre = (fileName: string) => {
-    const match = fileName.match(/_(2\d{3})(\d{2})[_\.]/)
-    if (match) return { anio: parseInt(match[1]), mes: parseInt(match[2]) }
-    const match2 = fileName.match(/(2\d{3})(\d{2})/)
-    if (match2) return { anio: parseInt(match2[1]), mes: parseInt(match2[2]) }
+    const parts = fileName.replace('.csv', '').replace('.xlsx', '').replace('.xls', '').split('_')
+    for (const part of parts) {
+      if (part.length === 6 && part.startsWith('20')) {
+        const anio = parseInt(part.substring(0, 4))
+        const mes = parseInt(part.substring(4, 6))
+        if (anio >= 2020 && anio <= 2030 && mes >= 1 && mes <= 12) {
+          return { anio, mes }
+        }
+      }
+    }
     return null
   }
 
