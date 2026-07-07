@@ -76,6 +76,21 @@ export default function ClientePage() {
   }
 
 
+  const borrarFacturas = async (periodoId: string) => {
+    if (!confirm('Estas seguro que deseas borrar todas las facturas de este periodo? El periodo quedara vacio.')) return
+    await supabase.from('facturas').delete().eq('periodo_id', periodoId)
+    await supabase.from('facturas_venta').delete().eq('periodo_id', periodoId)
+    await cargarDatos()
+  }
+
+  const borrarPeriodo = async (periodoId: string) => {
+    if (!confirm('Estas seguro que deseas borrar este periodo completo con todas sus facturas? Esta accion no se puede deshacer.')) return
+    await supabase.from('facturas').delete().eq('periodo_id', periodoId)
+    await supabase.from('facturas_venta').delete().eq('periodo_id', periodoId)
+    await supabase.from('periodos').delete().eq('id', periodoId)
+    await cargarDatos()
+  }
+
   const cambiarEstado = async (periodoId: string, estadoActual: string) => {
     const siguiente: Record<string, string> = {
       'borrador': 'revision', 'revision': 'cerrado', 'cerrado': 'borrador'
@@ -592,9 +607,21 @@ export default function ClientePage() {
                           </button>
                           <button
                             onClick={() => router.push('/clientes/' + params.id + '/periodos/' + p.id)}
-                            className="text-gray-500 hover:text-gray-700 text-xs font-medium"
+                            className="text-gray-500 hover:text-gray-700 text-xs font-medium mr-2"
                           >
                             Facturas →
+                          </button>
+                          <button
+                            onClick={() => borrarFacturas(p.id)}
+                            className="text-orange-500 hover:text-orange-700 text-xs font-medium mr-2"
+                          >
+                            Borrar facturas
+                          </button>
+                          <button
+                            onClick={() => borrarPeriodo(p.id)}
+                            className="text-red-500 hover:text-red-700 text-xs font-medium"
+                          >
+                            Borrar periodo
                           </button>
                         </td>
                       </tr>
