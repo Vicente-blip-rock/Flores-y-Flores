@@ -232,9 +232,9 @@ export default function ClientePage() {
   }
 
   const mesAnioDesdeNombre = (fileName: string) => {
-    const match = fileName.match(/(\d{4})(\d{2})\./)
+    const match = fileName.match(/_(2\d{3})(\d{2})[_\.]/)
     if (match) return { anio: parseInt(match[1]), mes: parseInt(match[2]) }
-    const match2 = fileName.match(/(\d{4})(\d{2})/)
+    const match2 = fileName.match(/(2\d{3})(\d{2})/)
     if (match2) return { anio: parseInt(match2[1]), mes: parseInt(match2[2]) }
     return null
   }
