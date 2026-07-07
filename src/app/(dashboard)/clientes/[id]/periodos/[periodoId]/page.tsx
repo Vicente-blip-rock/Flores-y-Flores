@@ -13,6 +13,8 @@ export default function PeriodoPage() {
   const [clasificando, setClasificando] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [editando, setEditando] = useState<string | null>(null)
+  const [pestana, setPestana] = useState<'compras' | 'ventas'>('compras')
+  const [ventas, setVentas] = useState<any[]>([])
   const [busquedaCuenta, setBusquedaCuenta] = useState('')
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -35,6 +37,10 @@ export default function PeriodoPage() {
       const { data: facturasData } = await supabase
         .from('facturas').select('*').eq('periodo_id', params.periodoId).order('numero_linea')
       setFacturas(facturasData || [])
+
+      const { data: ventasData } = await supabase
+        .from('facturas_venta').select('*').eq('periodo_id', params.periodoId).order('numero_linea')
+      setVentas(ventasData || [])
 
       const { data: cuentasData } = await supabase
         .from('plan_de_cuentas').select('nombre').eq('cliente_id', params.id).eq('activo', true)
@@ -239,15 +245,73 @@ export default function PeriodoPage() {
 
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b flex justify-between items-center">
-            <h3 className="font-medium text-gray-900">Facturas</h3>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setPestana('compras')}
+                className={'px-4 py-1.5 rounded-lg text-sm font-medium transition ' + (pestana === 'compras' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-700')}
+              >
+                📥 Compras ({facturas.length})
+              </button>
+              <button
+                onClick={() => setPestana('ventas')}
+                className={'px-4 py-1.5 rounded-lg text-sm font-medium transition ' + (pestana === 'ventas' ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-gray-700')}
+              >
+                📤 Ventas ({ventas.length})
+              </button>
+            </div>
             <div className="flex items-center gap-4">
-              {sinClasificar > 0 && (
+              {pestana === 'compras' && sinClasificar > 0 && (
                 <span className="text-sm text-yellow-600 font-medium">{sinClasificar} sin clasificar</span>
               )}
-              <span className="text-xs text-gray-400">Click en la cuenta para editar</span>
+              {pestana === 'compras' && <span className="text-xs text-gray-400">Click en la cuenta para editar</span>}
             </div>
           </div>
           <div className="overflow-x-auto">
+            {pestana === 'ventas' ? (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">N</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Tipo</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">RUT Cliente</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Cliente</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Folio</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Fecha</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500">Exento</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500">Neto</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500">IVA</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {ventas.length === 0 ? (
+                    <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No hay ventas cargadas para este periodo</td></tr>
+                  ) : ventas.map((v) => (
+                    <tr key={v.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-500">{v.numero_linea}</td>
+                      <td className="px-4 py-3">
+                        <span className={
+                          v.tipo_doc === 61 ? 'px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700' :
+                          v.tipo_doc === 34 ? 'px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600' :
+                          v.tipo_doc === 39 ? 'px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700' :
+                          'px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700'
+                        }>
+                          {v.tipo_doc === 33 ? 'Factura' : v.tipo_doc === 34 ? 'Fact. Exenta' : v.tipo_doc === 39 ? 'Boleta' : v.tipo_doc === 61 ? 'Nota Credito' : v.tipo_doc}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{v.rut_cliente}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{v.razon_social}</td>
+                      <td className="px-4 py-3 text-gray-500">{v.folio}</td>
+                      <td className="px-4 py-3 text-gray-500">{v.fecha}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{formatNum(v.exento || 0)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{formatNum(v.neto || 0)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{formatNum(v.iva || 0)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-gray-900">{formatNum(v.total || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
@@ -337,6 +401,7 @@ export default function PeriodoPage() {
                 ))}
               </tbody>
             </table>
+            )}
           </div>
         </div>
       </main>
