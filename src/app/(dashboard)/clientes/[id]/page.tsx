@@ -281,14 +281,26 @@ export default function ClientePage() {
   }
 
   const verificarLimite = async (cantidad: number) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: 'Usuario no autenticado' }
+
     const { data: usuario } = await supabase
-      .from('usuarios').select('organizacion_id').single()
-    if (!usuario) return { ok: false, error: 'Usuario no encontrado' }
+      .from('usuarios').select('organizacion_id').eq('id', user.id).single()
+
+    // Si es super admin, obtener la org del cliente actual
+    let orgId = usuario?.organizacion_id
+    if (!orgId) {
+      const { data: clienteData } = await supabase
+        .from('clientes').select('organizacion_id').eq('id', params.id).single()
+      orgId = clienteData?.organizacion_id
+    }
+
+    if (!orgId) return { ok: false, error: 'Organizacion no encontrada' }
 
     const { data: org } = await supabase
       .from('organizaciones')
       .select('activo, documentos_mes_actual, mes_contador, anio_contador, planes(limite_documentos)')
-      .eq('id', usuario.organizacion_id)
+      .eq('id', orgId)
       .single()
 
     if (!org) return { ok: false, error: 'Organizacion no encontrada' }
@@ -305,7 +317,7 @@ export default function ClientePage() {
       return { ok: false, error: 'Limite de documentos alcanzado (' + docsActuales + '/' + limite + ')' }
     }
 
-    await supabase.rpc('incrementar_documentos', { org_id: usuario.organizacion_id, cantidad })
+    await supabase.rpc('incrementar_documentos', { org_id: orgId, cantidad })
     return { ok: true }
   }
 
