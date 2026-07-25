@@ -99,7 +99,7 @@ export default function ResumenPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b px-6 py-4 flex justify-between items-center">
-        <h1 className="text-lg font-bold text-gray-900">Asesorias Flores y Flores</h1>
+        <h1 className="text-lg font-bold text-gray-900">ContAI</h1>
         <div className="flex gap-4">
           <button
             onClick={exportarExcel}

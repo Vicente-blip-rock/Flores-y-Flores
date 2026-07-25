@@ -113,7 +113,7 @@ export default function CuentasClientePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b px-6 py-4 flex justify-between items-center">
-        <h1 className="text-lg font-bold text-gray-900">Asesorias Flores y Flores</h1>
+        <h1 className="text-lg font-bold text-gray-900">ContAI</h1>
         <button onClick={() => router.push('/clientes/' + params.id)} className="text-sm text-gray-500 hover:text-gray-700">
           Volver
         </button>
