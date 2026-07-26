@@ -138,7 +138,7 @@ export default function AprobarRendicionesPage() {
                       {new Date(r.created_at).toLocaleDateString('es-CL')}
                     </p>
                     {r.observaciones && (
-                      <p className="text-xs text-gray-500 mt-1 italic">"{r.observaciones}"</p>
+                      <p className="text-xs text-gray-500 mt-1 italic>">"{r.observaciones}"</p>quot;{r.observaciones}">"{r.observaciones}"</p>quot;</p>
                     )}
                   </div>
                 ))}
