@@ -91,8 +91,9 @@ export async function POST(req: NextRequest) {
     const username = message.from.first_name || 'Usuario'
     const text = message.text || ''
 
-    const { data: telegramUser } = await supabase
+    const { data: telegramUser, error: tuError } = await supabase
       .from('telegram_usuarios').select('*, clientes(nombre, rut, rubro, organizacion_id)').eq('telegram_id', telegramId).single()
+    console.log('telegramUser:', JSON.stringify(telegramUser), 'error:', tuError?.message)
 
     // Comando /start
     if (text === '/start') {
