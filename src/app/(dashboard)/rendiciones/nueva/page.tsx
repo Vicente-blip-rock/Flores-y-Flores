@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation'
 
 export default function NuevaRendicionPage() {
   const [proyectos, setProyectos] = useState<any[]>([])
+  const [clientes, setClientes] = useState<any[]>([])
   const [usuarios, setUsuarios] = useState<any[]>([])
   const [form, setForm] = useState({
+    cliente_id: '',
     proyecto_id: '',
     rendidor_id: '',
     periodo_desde: '',
@@ -24,6 +26,10 @@ export default function NuevaRendicionPage() {
       const { data: { user } } = await supabase.auth.getUser()
       const { data: usuarioData } = await supabase
         .from('usuarios').select('*').eq('id', user?.id).single()
+
+      const { data: clientesData } = await supabase
+        .from('clientes').select('*').eq('activo', true).order('nombre')
+      setClientes(clientesData || [])
 
       const { data: proyectosData } = await supabase
         .from('proyectos').select('*').eq('activo', true).order('nombre')
@@ -62,6 +68,7 @@ export default function NuevaRendicionPage() {
       organizacion_id: usuarioData?.organizacion_id,
       numero,
       rendidor_id: form.rendidor_id,
+      cliente_id: form.cliente_id || null,
       proyecto_id: form.proyecto_id || null,
       periodo_desde: form.periodo_desde || null,
       periodo_hasta: form.periodo_hasta || null,
@@ -92,6 +99,20 @@ export default function NuevaRendicionPage() {
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Nueva Rendicion</h2>
 
         <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cliente *</label>
+            <select
+              value={form.cliente_id}
+              onChange={e => setForm({ ...form, cliente_id: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Seleccionar cliente...</option>
+              {clientes.map(c => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Rendidor *</label>
             <select
