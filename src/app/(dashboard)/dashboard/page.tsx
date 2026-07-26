@@ -114,14 +114,53 @@ export default function DashboardPage() {
 
       <main style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 24px' }}>
 
-        {/* Saludo */}
+        {/* Saludo y bienvenida */}
         <div style={{ marginBottom: '40px' }}>
-          <h1 style={{ fontSize: '34px', fontWeight: 700, color: '#1D1D1F', letterSpacing: '-0.5px', margin: 0 }}>
+          <h1 style={{ fontSize: '34px', fontWeight: 700, color: '#1D1D1F', letterSpacing: '-0.5px', margin: '0 0 8px' }}>
             {getSaludo()}{usuario?.nombre ? ', ' + usuario.nombre.split(' ')[0] : ''}.
           </h1>
-          <p style={{ fontSize: '17px', color: '#6E6E73', marginTop: '6px', marginBottom: 0 }}>
-            {clientes.length === 0 ? 'Agrega tu primer cliente para comenzar.' : `Tienes ${clientesActivos} cliente${clientesActivos !== 1 ? 's' : ''} activo${clientesActivos !== 1 ? 's' : ''}.`}
+          <p style={{ fontSize: '17px', color: '#1D1D1F', margin: '0 0 20px', lineHeight: '1.5' }}>
+            Bienvenido a tu espacio de trabajo. Todo lo que necesitas para gestionar a tus clientes está aquí, en un solo lugar.
           </p>
+
+          <div style={{ background: '#fff', borderRadius: '18px', padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+            <p style={{ fontSize: '15px', fontWeight: 600, color: '#1D1D1F', margin: '0 0 14px', letterSpacing: '-0.2px' }}>
+              Te cuento los módulos que hoy tenemos funcionando:
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '20px' }}>
+              {[
+                'Gestión de clientes y documentos',
+                'Importar libros de compras y ventas del SII',
+                'Clasificar facturas automáticamente con IA',
+                'Preparar el F29 mensual',
+                'Exportar reportes en Excel',
+                'Gestionar rendiciones de gastos',
+                'Fotografiar boletas desde Telegram',
+              ].map(item => (
+                <div key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{ color: '#34C759', fontSize: '15px', flexShrink: 0, marginTop: '1px' }}>✓</span>
+                  <span style={{ fontSize: '14px', color: '#1D1D1F', lineHeight: '1.4' }}>{item}</span>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ fontSize: '15px', fontWeight: 600, color: '#1D1D1F', margin: '0 0 14px', letterSpacing: '-0.2px' }}>
+              Y esto es lo que viene en camino:
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              {[
+                'Conciliación bancaria',
+                'Remuneraciones y liquidaciones',
+                'Balances y estados financieros',
+                'Declaraciones juradas anuales',
+              ].map(item => (
+                <div key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{ color: '#0071E3', fontSize: '14px', flexShrink: 0, marginTop: '1px' }}>→</span>
+                  <span style={{ fontSize: '14px', color: '#6E6E73', lineHeight: '1.4' }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Acciones rápidas */}
