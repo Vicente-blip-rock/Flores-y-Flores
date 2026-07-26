@@ -55,6 +55,7 @@ const procesarOCR = async (base64: string, mediaType: string) => {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+    console.log('Telegram webhook received:', JSON.stringify(body).substring(0, 200))
     const message = body.message
     const callbackQuery = body.callback_query
 
