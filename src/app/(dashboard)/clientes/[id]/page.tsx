@@ -14,6 +14,7 @@ export default function ClientePage() {
   const [subiendoVentas, setSubiendoVentas] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [mensajeError, setMensajeError] = useState('')
+  const [moduloActivo, setModuloActivo] = useState<string | null>(null)
   const [editandoPeriodo, setEditandoPeriodo] = useState<string | null>(null)
   const [periodoForm, setPeriodoForm] = useState({ mes: 1, anio: 2026 })
   const router = useRouter()
@@ -490,23 +491,23 @@ export default function ClientePage() {
 
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div
-            className="bg-blue-50 border border-blue-200 rounded-2xl p-5 cursor-pointer hover:bg-blue-100 transition"
-            onClick={() => {}}
+            className={'border rounded-2xl p-5 cursor-pointer transition ' + (moduloActivo === 'contabilidad' ? 'bg-blue-100 border-blue-400' : 'bg-blue-50 border-blue-200 hover:bg-blue-100')}
+            onClick={() => setModuloActivo(moduloActivo === 'contabilidad' ? null : 'contabilidad')}
           >
             <div className="text-2xl mb-2">📊</div>
             <h3 className="font-medium text-blue-900">Contabilidad</h3>
             <p className="text-blue-600 text-xs mt-1">Libros SII, clasificacion, F29</p>
           </div>
           <div
-            className="bg-orange-50 border border-orange-200 rounded-2xl p-5 cursor-pointer hover:bg-orange-100 transition"
-            onClick={() => router.push('/rendiciones?cliente=' + params.id)}
+            className={'border rounded-2xl p-5 cursor-pointer transition ' + (moduloActivo === 'rendiciones' ? 'bg-orange-100 border-orange-400' : 'bg-orange-50 border-orange-200 hover:bg-orange-100')}
+            onClick={() => setModuloActivo(moduloActivo === 'rendiciones' ? null : 'rendiciones')}
           >
             <div className="text-2xl mb-2">📋</div>
             <h3 className="font-medium text-orange-900">Rendiciones</h3>
             <p className="text-orange-600 text-xs mt-1">Control de gastos y comprobantes</p>
           </div>
           <div
-            className="bg-gray-50 border border-gray-200 rounded-2xl p-5 cursor-pointer hover:bg-gray-100 transition"
+            className={'border rounded-2xl p-5 cursor-pointer transition ' + (moduloActivo === 'configuracion' ? 'bg-gray-100 border-gray-400' : 'bg-gray-50 border-gray-200 hover:bg-gray-100')}
             onClick={() => router.push('/clientes/' + params.id + '/cuentas')}
           >
             <div className="text-2xl mb-2">⚙️</div>
@@ -515,6 +516,7 @@ export default function ClientePage() {
           </div>
         </div>
 
+        {moduloActivo === 'contabilidad' && <>
         <div id="contabilidad" className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h3 className="font-medium text-gray-900 mb-4">📥 Libro de Compras SII</h3>
@@ -677,6 +679,7 @@ export default function ClientePage() {
             </div>
           </div>
         )}
+        </>}
       </main>
     </div>
   )
