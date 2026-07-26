@@ -100,12 +100,7 @@ export default function DashboardPage() {
             onMouseOut={e => (e.currentTarget.style.background = '#0071E3')}>
             + Nuevo cliente
           </button>
-          <button onClick={() => router.push('/carga-masiva')}
-            style={{ background: '#fff', color: '#1D1D1F', border: '1px solid rgba(0,0,0,0.12)', borderRadius: '980px', padding: '10px 20px', fontSize: '15px', fontWeight: 500, cursor: 'pointer', letterSpacing: '-0.2px' }}
-            onMouseOver={e => (e.currentTarget.style.background = '#F5F5F7')}
-            onMouseOut={e => (e.currentTarget.style.background = '#fff')}>
-            Carga masiva
-          </button>
+
         </div>
 
         {/* Lista de clientes */}
