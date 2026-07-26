@@ -70,43 +70,78 @@ export default function RendicionPage() {
 
   useEffect(() => { cargarDatos() }, [])
 
+  const comprimirImagen = (file: File): Promise<{ blob: Blob, base64: string, mediaType: string }> => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        const maxWidth = 1200
+        const scale = img.width > maxWidth ? maxWidth / img.width : 1
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width * scale
+        canvas.height = img.height * scale
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob(blob => {
+          const reader = new FileReader()
+          reader.onload = e => {
+            const dataUrl = e.target?.result as string
+            const base64 = dataUrl.split(',')[1]
+            resolve({ blob: blob!, base64, mediaType: 'image/jpeg' })
+          }
+          reader.readAsDataURL(blob!)
+        }, 'image/jpeg', 0.8)
+        URL.revokeObjectURL(url)
+      }
+      img.src = url
+    })
+  }
+
+  const subirFoto = async (blob: Blob, gastoId: string): Promise<string | null> => {
+    const path = 'gastos/' + gastoId + '.jpg'
+    const { error } = await supabase.storage.from('comprobantes').upload(path, blob, {
+      contentType: 'image/jpeg',
+      upsert: true
+    })
+    if (error) { console.error('Error subiendo foto:', error); return null }
+    const { data } = supabase.storage.from('comprobantes').getPublicUrl(path)
+    return path
+  }
+
   const procesarImagenIA = async (file: File) => {
     setProcesandoIA(true)
     setMensaje('Procesando imagen con IA...')
     try {
-      const reader = new FileReader()
-      reader.onload = async (e) => {
-        const dataUrl = e.target?.result as string
-        const base64 = dataUrl.split(',')[1]
-        const mediaType = file.type || 'image/jpeg'
+      const { blob, base64, mediaType } = await comprimirImagen(file)
+      
+      const response = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64, mediaType })
+      })
 
-        const response = await fetch('/api/ocr', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ base64, mediaType })
-        })
+      const data = await response.json()
+      if (!data.ok) throw new Error(data.error)
+      const datos = data.datos
 
-        const data = await response.json()
-        if (!data.ok) throw new Error(data.error)
-        const datos = data.datos
+      // Guardar blob para subir despues del gasto
+      ;(window as any).__pendingBlob = blob
 
-        setForm(prev => ({
-          ...prev,
-          proveedor: datos.proveedor || '',
-          rut_proveedor: datos.rut_proveedor || '',
-          tipo_doc: datos.tipo_doc || 'Boleta',
-          folio: datos.folio || '',
-          fecha: datos.fecha || prev.fecha,
-          neto: datos.neto?.toString() || '',
-          iva: datos.iva?.toString() || '',
-          total: datos.total?.toString() || '',
-          concepto: datos.concepto || '',
-        }))
-        setMensaje('✅ Datos extraidos correctamente — revisa y confirma')
-        setShowNuevoGasto(true)
-        setProcesandoIA(false)
-      }
-      reader.readAsDataURL(file)
+      setForm(prev => ({
+        ...prev,
+        proveedor: datos.proveedor || '',
+        rut_proveedor: datos.rut_proveedor || '',
+        tipo_doc: datos.tipo_doc || 'Boleta',
+        folio: datos.folio || '',
+        fecha: datos.fecha || prev.fecha,
+        neto: datos.neto?.toString() || '',
+        iva: datos.iva?.toString() || '',
+        total: datos.total?.toString() || '',
+        concepto: datos.concepto || '',
+      }))
+      setMensaje('Datos extraidos — revisa y confirma antes de guardar')
+      setShowNuevoGasto(true)
+      setProcesandoIA(false)
     } catch (err: any) {
       setMensaje('Error al procesar imagen: ' + err.message)
       setProcesandoIA(false)
@@ -153,6 +188,21 @@ export default function RendicionPage() {
     })
 
     if (!error) {
+      // Subir foto si existe
+      const pendingBlob = (window as any).__pendingBlob
+      if (pendingBlob) {
+        const { data: gastoCreado } = await supabase
+          .from('gastos_rendicion').select('id').eq('rendicion_id', params.id)
+          .order('created_at', { ascending: false }).limit(1).single()
+        if (gastoCreado) {
+          const fotoPath = await subirFoto(pendingBlob, gastoCreado.id)
+          if (fotoPath) {
+            await supabase.from('gastos_rendicion').update({ imagen_url: fotoPath }).eq('id', gastoCreado.id)
+          }
+        }
+        delete (window as any).__pendingBlob
+      }
+
       await supabase.from('rendiciones').update({
         total_solicitado: gastos.reduce((s, g) => s + (g.total || 0), 0) + total,
         updated_at: new Date().toISOString()
@@ -410,6 +460,7 @@ export default function RendicionPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Concepto</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Categoria</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-500">Total</th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-500">Foto</th>
                   <th className="text-center px-4 py-3 font-medium text-gray-500">Estado</th>
                   {editable && <th className="px-4 py-3"></th>}
                 </tr>
@@ -424,6 +475,22 @@ export default function RendicionPage() {
                       {g.categorias_gasto ? g.categorias_gasto.icono + ' ' + g.categorias_gasto.nombre : '-'}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-gray-900">{formatNum(g.total)}</td>
+                    <td className="px-4 py-3 text-center">
+                      {g.imagen_url ? (
+                        <button
+                          onClick={async () => {
+                            const { data } = await supabase.storage.from('comprobantes').createSignedUrl(g.imagen_url, 60)
+                            if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-lg"
+                          title="Ver comprobante"
+                        >
+                          📄
+                        </button>
+                      ) : (
+                        <span className="text-gray-300 text-lg">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         g.estado === 'aprobado' ? 'bg-green-100 text-green-700' :
