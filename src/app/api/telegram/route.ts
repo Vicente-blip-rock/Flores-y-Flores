@@ -9,11 +9,13 @@ const supabase = createClient(
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-const sendMessage = async (chatId: number, text: string) => {
+const sendMessage = async (chatId: number, text: string, keyboard?: any) => {
+  const body: any = { chat_id: chatId, text, parse_mode: 'HTML' }
+  if (keyboard) body.reply_markup = keyboard
   await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+    body: JSON.stringify(body)
   })
 }
 
@@ -23,55 +25,102 @@ const getFile = async (fileId: string): Promise<string> => {
   return `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${data.result.file_path}`
 }
 
-const downloadImage = async (url: string): Promise<string> => {
+const downloadImageBase64 = async (url: string): Promise<{ base64: string, mediaType: string }> => {
   const res = await fetch(url)
   const buffer = await res.arrayBuffer()
   const base64 = Buffer.from(buffer).toString('base64')
-  const contentType = res.headers.get('content-type') || 'image/jpeg'
-  return `data:${contentType};base64,${base64}`
+  const mediaType = 'image/jpeg'
+  return { base64, mediaType }
+}
+
+const procesarOCR = async (base64: string, mediaType: string) => {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    max_tokens: 1000,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: `data:${mediaType};base64,${base64}` } },
+        {
+          type: 'text',
+          text: 'Extrae datos de este comprobante chileno. Responde SOLO con JSON:\n{"proveedor": "", "rut_proveedor": "", "tipo_doc": "Boleta", "folio": "", "fecha": "YYYY-MM-DD", "neto": 0, "iva": 0, "total": 0, "concepto": ""}'
+        }
+      ]
+    }]
+  })
+  const content = response.choices[0].message.content || '{}'
+  return JSON.parse(content.replace(/```json|```/g, '').trim())
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const message = body.message
-    if (!message) return NextResponse.json({ ok: true })
+    const callbackQuery = body.callback_query
 
-    const chatId = message.chat.id
-    const telegramId = message.from.id
-    const username = message.from.username || message.from.first_name || 'Usuario'
-    const text = message.text || ''
+    // Manejar callback de botones
+    if (callbackQuery) {
+      const chatId = callbackQuery.message.chat.id
+      const telegramId = callbackQuery.from.id
+      const data = callbackQuery.data
 
-    // Buscar usuario registrado
-    const { data: telegramUser } = await supabase
-      .from('telegram_usuarios')
-      .select('*, clientes(nombre, rut, rubro)')
-      .eq('telegram_id', telegramId)
-      .single()
+      await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callback_query_id: callbackQuery.id })
+      })
 
-    // Comando /start
-    if (text === '/start') {
-      if (telegramUser?.estado === 'activo') {
-        await sendMessage(chatId, `Hola ${username}! Ya estas registrado como cliente <b>${telegramUser.clientes?.nombre}</b>.\n\nEnviame una foto de una factura o boleta y la procesare automaticamente.`)
-      } else {
-        await sendMessage(chatId, `Hola ${username}! Bienvenido a IAconta.\n\nPara registrarte, enviame tu <b>RUT de empresa</b> (sin puntos, con guion).\nEjemplo: 76029106-4`)
+      const { data: tUser } = await supabase
+        .from('telegram_usuarios').select('*').eq('telegram_id', telegramId).single()
+
+      if (data === 'rendir') {
+        await supabase.from('telegram_usuarios').update({ modo: 'rendir' }).eq('telegram_id', telegramId)
+        await sendMessage(chatId, 'Perfecto! Envia la foto de tu boleta o ticket y la procesare automaticamente.')
+      } else if (data === 'factura') {
+        await supabase.from('telegram_usuarios').update({ modo: 'factura' }).eq('telegram_id', telegramId)
+        await sendMessage(chatId, 'Envia la foto de la factura del cliente.')
       }
       return NextResponse.json({ ok: true })
     }
 
-    // Si no esta registrado, espera el RUT
+    if (!message) return NextResponse.json({ ok: true })
+
+    const chatId = message.chat.id
+    const telegramId = message.from.id
+    const username = message.from.first_name || 'Usuario'
+    const text = message.text || ''
+
+    const { data: telegramUser } = await supabase
+      .from('telegram_usuarios').select('*, clientes(nombre, rut, rubro, organizacion_id)').eq('telegram_id', telegramId).single()
+
+    // Comando /start
+    if (text === '/start') {
+      if (telegramUser?.estado === 'activo') {
+        await sendMessage(chatId,
+          'Hola ' + username + '! Soy IAconta.\n\nEstas registrado como usuario de <b>' + (telegramUser.clientes?.nombre || 'tu empresa') + '</b>.\n\nEnvíame una foto de tu boleta o factura y la proceso.',
+          {
+            inline_keyboard: [[
+              { text: '💸 Rendir un gasto', callback_data: 'rendir' },
+              { text: '🧾 Factura de cliente', callback_data: 'factura' }
+            ]]
+          }
+        )
+      } else {
+        await sendMessage(chatId, 'Hola ' + username + '! Bienvenido a IAconta.\n\nPara registrarte, envíame el <b>RUT de tu empresa</b>.\nEjemplo: 76029106-4')
+      }
+      return NextResponse.json({ ok: true })
+    }
+
+    // Registro por RUT
     if (!telegramUser || telegramUser.estado === 'pendiente') {
       const rutPattern = /^\d{7,8}-[\dkK]$/
       if (rutPattern.test(text.trim())) {
         const rut = text.trim()
         const { data: cliente } = await supabase
-          .from('clientes')
-          .select('id, nombre, organizacion_id')
-          .eq('rut', rut)
-          .single()
+          .from('clientes').select('id, nombre, organizacion_id').eq('rut', rut).single()
 
         if (!cliente) {
-          await sendMessage(chatId, `No encontre ningun cliente con el RUT <b>${rut}</b>.\n\nVerifica el RUT e intentalo nuevamente.`)
+          await sendMessage(chatId, 'No encontre ninguna empresa con el RUT <b>' + rut + '</b>.\n\nVerifica e intenta de nuevo.')
           return NextResponse.json({ ok: true })
         }
 
@@ -80,19 +129,41 @@ export async function POST(req: NextRequest) {
           telegram_username: username,
           cliente_id: cliente.id,
           organizacion_id: cliente.organizacion_id,
-          estado: 'activo'
+          estado: 'activo',
+          modo: 'rendir'
         }, { onConflict: 'telegram_id' })
 
-        await sendMessage(chatId, `Perfecto! Quedaste registrado como <b>${cliente.nombre}</b>.\n\nAhora puedes enviarme fotos de tus facturas y boletas y las procesare automaticamente.`)
+        await sendMessage(chatId,
+          'Listo! Quedaste registrado en <b>' + cliente.nombre + '</b>.\n\nAhora puedes enviarme fotos de tus gastos.',
+          {
+            inline_keyboard: [[
+              { text: '💸 Rendir un gasto', callback_data: 'rendir' },
+              { text: '🧾 Factura de cliente', callback_data: 'factura' }
+            ]]
+          }
+        )
       } else {
-        await sendMessage(chatId, `Por favor enviame tu RUT de empresa.\nFormato: 76029106-4`)
+        await sendMessage(chatId, 'Envíame tu RUT de empresa para registrarte.\nFormato: 76029106-4')
       }
       return NextResponse.json({ ok: true })
     }
 
-    // Usuario registrado - procesar imagen
+    // Mensaje de texto de usuario registrado
+    if (text && text !== '/start') {
+      await sendMessage(chatId, 'Hola ' + username + '! Para procesar un documento, envíame una foto.',
+        {
+          inline_keyboard: [[
+            { text: '💸 Rendir un gasto', callback_data: 'rendir' },
+            { text: '🧾 Factura de cliente', callback_data: 'factura' }
+          ]]
+        }
+      )
+      return NextResponse.json({ ok: true })
+    }
+
+    // Procesar imagen
     if (message.photo || message.document) {
-      await sendMessage(chatId, `Procesando tu documento... un momento`)
+      await sendMessage(chatId, 'Procesando tu documento... un momento ⏳')
 
       let fileId = ''
       if (message.photo) {
@@ -102,87 +173,110 @@ export async function POST(req: NextRequest) {
       }
 
       const fileUrl = await getFile(fileId)
-      const imageBase64 = await downloadImage(fileUrl)
+      const { base64, mediaType } = await downloadImageBase64(fileUrl)
+      const datos = await procesarOCR(base64, mediaType)
 
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image_url',
-              image_url: { url: imageBase64 }
-            },
-            {
-              type: 'text',
-              text: 'Extrae los datos de esta factura o boleta chilena. Responde SOLO con JSON sin texto adicional:\n{"rut_proveedor": "", "razon_social": "", "folio": "", "fecha": "YYYY-MM-DD", "neto": 0, "iva": 0, "total": 0, "tipo_doc": 33}'
-            }
-          ]
-        }],
-        max_tokens: 500
-      })
-
-      const content = response.choices[0].message.content || '{}'
-      const clean = content.replace(/```json|```/g, '').trim()
-      const datos = JSON.parse(clean)
-
-      // Buscar o crear periodo actual
+      const modo = telegramUser.modo || 'rendir'
       const ahora = new Date()
       const mes = ahora.getMonth() + 1
       const anio = ahora.getFullYear()
 
-      const { data: periodoExistente } = await supabase
-        .from('periodos')
-        .select('id')
-        .eq('cliente_id', telegramUser.cliente_id)
-        .eq('mes', mes)
-        .eq('anio', anio)
-        .maybeSingle()
+      if (modo === 'rendir') {
+        // Buscar o crear rendicion activa del usuario
+        let { data: rendicion } = await supabase
+          .from('rendiciones')
+          .select('id')
+          .eq('rendidor_id', telegramUser.cliente_id)
+          .eq('estado', 'borrador')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
-      let periodoId = periodoExistente?.id
-      if (!periodoId) {
-        const { data: nuevoPeriodo } = await supabase
-          .from('periodos')
-          .insert({ cliente_id: telegramUser.cliente_id, mes, anio, estado: 'borrador' })
-          .select().single()
-        periodoId = nuevoPeriodo?.id
+        if (!rendicion) {
+          const { count } = await supabase.from('rendiciones').select('*', { count: 'exact', head: true })
+          const numero = 'R-' + anio + '-' + String((count || 0) + 1).padStart(3, '0')
+          const { data: nueva } = await supabase.from('rendiciones').insert({
+            organizacion_id: telegramUser.organizacion_id,
+            cliente_id: telegramUser.cliente_id,
+            numero,
+            rendidor_id: telegramUser.cliente_id,
+            estado: 'borrador',
+            total_solicitado: 0,
+            total_aprobado: 0
+          }).select().single()
+          rendicion = nueva
+        }
+
+        const total = datos.total || 0
+        await supabase.from('gastos_rendicion').insert({
+          rendicion_id: rendicion?.id,
+          organizacion_id: telegramUser.organizacion_id,
+          fecha: datos.fecha || ahora.toISOString().split('T')[0],
+          proveedor: datos.proveedor || '',
+          rut_proveedor: datos.rut_proveedor || '',
+          tipo_doc: datos.tipo_doc || 'Boleta',
+          folio: datos.folio || '',
+          concepto: datos.concepto || '',
+          neto: datos.neto || 0,
+          iva: datos.iva || 0,
+          total,
+          monto_solicitado: total,
+          estado: 'borrador',
+          procesado_por_ia: true
+        })
+
+        await supabase.from('rendiciones').update({
+          total_solicitado: supabase.rpc('incrementar_documentos', { org_id: telegramUser.organizacion_id, cantidad: 0 })
+        }).eq('id', rendicion?.id)
+
+        await sendMessage(chatId,
+          'Gasto registrado!\n\n' +
+          'Proveedor: <b>' + (datos.proveedor || 'No detectado') + '</b>\n' +
+          'Total: <b>$' + total.toLocaleString('es-CL') + '</b>\n' +
+          'Fecha: ' + (datos.fecha || 'No detectada') + '\n\n' +
+          'Puedes ver y enviar tu rendicion desde ContAI.'
+        )
+      } else {
+        // Modo factura - flujo contable
+        const { data: periodoExistente } = await supabase
+          .from('periodos').select('id').eq('cliente_id', telegramUser.cliente_id)
+          .eq('mes', mes).eq('anio', anio).maybeSingle()
+
+        let periodoId = periodoExistente?.id
+        if (!periodoId) {
+          const { data: nuevoPeriodo } = await supabase
+            .from('periodos').insert({ cliente_id: telegramUser.cliente_id, mes, anio, estado: 'borrador' })
+            .select().single()
+          periodoId = nuevoPeriodo?.id
+        }
+
+        await supabase.from('facturas').insert({
+          periodo_id: periodoId,
+          tipo_doc: datos.tipo_doc === 'Factura' ? 33 : 39,
+          rut_proveedor: datos.rut_proveedor || '',
+          razon_social: datos.proveedor || '',
+          folio: datos.folio || '',
+          fecha: datos.fecha || ahora.toISOString().split('T')[0],
+          neto: datos.neto || 0,
+          iva: datos.iva || 0,
+          total: datos.total || 0,
+          exento: 0,
+          iepd: 0,
+          clasificado_por: 'ia'
+        })
+
+        await sendMessage(chatId,
+          'Factura registrada!\n\n' +
+          'Proveedor: <b>' + (datos.proveedor || 'No detectado') + '</b>\n' +
+          'Total: <b>$' + (datos.total || 0).toLocaleString('es-CL') + '</b>\n\n' +
+          'Periodo: ' + mes + '/' + anio
+        )
       }
-
-      // Guardar factura
-      await supabase.from('facturas').insert({
-        periodo_id: periodoId,
-        tipo_doc: datos.tipo_doc || 33,
-        rut_proveedor: datos.rut_proveedor || '',
-        razon_social: datos.razon_social || '',
-        folio: datos.folio || '',
-        fecha: datos.fecha || ahora.toISOString().split('T')[0],
-        neto: datos.neto || 0,
-        iva: datos.iva || 0,
-        total: datos.total || 0,
-        exento: 0,
-        iepd: 0,
-        clasificado_por: 'ia'
-      })
-
-      const meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-
-      await sendMessage(chatId,
-        `Factura registrada exitosamente!\n\n` +
-        `Proveedor: <b>${datos.razon_social}</b>\n` +
-        `RUT: ${datos.rut_proveedor}\n` +
-        `Folio: ${datos.folio}\n` +
-        `Total: $${(datos.total || 0).toLocaleString('es-CL')}\n` +
-        `Periodo: ${meses[mes]} ${anio}`
-      )
-
-    } else if (text && text !== '/start') {
-      await sendMessage(chatId, `Hola ${username}! Enviame una foto de una factura o boleta y la procesare automaticamente.`)
     }
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {
-    console.error('Telegram webhook error:', err)
+    console.error('Telegram error:', err)
     return NextResponse.json({ ok: true })
   }
 }
