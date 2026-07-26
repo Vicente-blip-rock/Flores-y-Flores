@@ -12,11 +12,14 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const sendMessage = async (chatId: number, text: string, keyboard?: any) => {
   const body: any = { chat_id: chatId, text, parse_mode: 'HTML' }
   if (keyboard) body.reply_markup = keyboard
-  await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+  console.log('Sending message to', chatId, 'token exists:', !!process.env.TELEGRAM_BOT_TOKEN)
+  const sendRes = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   })
+  const sendData = await sendRes.json()
+  console.log('Send result:', JSON.stringify(sendData).substring(0, 200))
 }
 
 const getFile = async (fileId: string): Promise<string> => {
