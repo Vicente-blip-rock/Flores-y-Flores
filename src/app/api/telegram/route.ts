@@ -119,8 +119,9 @@ export async function POST(req: NextRequest) {
 
     // Registro por RUT
     if (!telegramUser || telegramUser.estado === 'pendiente') {
-      const rutPattern = /^\d{7,8}-[\dkK]$/
-      if (rutPattern.test(text.trim())) {
+      const rutClean = text.trim().replace(/\./g, '')
+      const rutPattern = /^\d{7,8}-[\dkK]$/i
+      if (rutPattern.test(rutClean)) {
         const rut = text.trim()
         const { data: cliente } = await supabase
           .from('clientes').select('id, nombre, organizacion_id').eq('rut', rut).single()
