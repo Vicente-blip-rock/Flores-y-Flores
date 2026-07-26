@@ -197,7 +197,8 @@ export async function POST(req: NextRequest) {
         let { data: rendicion } = await supabase
           .from('rendiciones')
           .select('id')
-          .eq('rendidor_id', telegramUser.cliente_id)
+          .eq('cliente_id', telegramUser.cliente_id)
+          .eq('organizacion_id', telegramUser.organizacion_id)
           .eq('estado', 'borrador')
           .order('created_at', { ascending: false })
           .limit(1)
@@ -206,15 +207,15 @@ export async function POST(req: NextRequest) {
         if (!rendicion) {
           const { count } = await supabase.from('rendiciones').select('*', { count: 'exact', head: true })
           const numero = 'R-' + anio + '-' + String((count || 0) + 1).padStart(3, '0')
-          const { data: nueva } = await supabase.from('rendiciones').insert({
+          const { data: nueva, error: rendErr } = await supabase.from('rendiciones').insert({
             organizacion_id: telegramUser.organizacion_id,
             cliente_id: telegramUser.cliente_id,
             numero,
-            rendidor_id: telegramUser.cliente_id,
             estado: 'borrador',
             total_solicitado: 0,
             total_aprobado: 0
           }).select().single()
+          console.log('Nueva rendicion:', nueva?.id, 'error:', rendErr?.message)
           rendicion = nueva
         }
 
