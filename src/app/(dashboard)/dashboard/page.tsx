@@ -74,6 +74,12 @@ export default function DashboardPage() {
           <h2 className="text-xl font-semibold text-gray-900">Clientes</h2>
           <div className="flex gap-3">
             <button
+              onClick={() => router.push('/rendiciones')}
+              className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition"
+            >
+              📋 Rendiciones
+            </button>
+            <button
               onClick={() => router.push('/carga-masiva')}
               className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition"
             >
