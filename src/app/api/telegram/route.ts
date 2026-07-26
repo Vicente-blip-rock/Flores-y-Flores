@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
 
         const total = datos.total || 0
         console.log('Guardando gasto en rendicion:', rendicion?.id, 'org:', telegramUser.organizacion_id)
-        const { error: gastoErr } = await supabase.from('gastos_rendicion').insert({
+        const { data: gastoCreado, error: gastoErr } = await supabase.from('gastos_rendicion').insert({
           rendicion_id: rendicion?.id,
           organizacion_id: telegramUser.organizacion_id,
           fecha: datos.fecha || ahora.toISOString().split('T')[0],
@@ -236,8 +236,29 @@ export async function POST(req: NextRequest) {
           monto_solicitado: total,
           estado: 'borrador',
           procesado_por_ia: true
-        })
+        }).select().single()
         console.log('Gasto error:', gastoErr?.message)
+
+        // Subir foto a Storage
+        if (gastoCreado && !gastoErr) {
+          try {
+            const fotoPath = 'gastos/' + gastoCreado.id + '.jpg'
+            const { error: storageErr } = await supabase.storage
+              .from('comprobantes')
+              .upload(fotoPath, Buffer.from(base64, 'base64'), {
+                contentType: mediaType,
+                upsert: true
+              })
+            if (!storageErr) {
+              await supabase.from('gastos_rendicion').update({ imagen_url: fotoPath }).eq('id', gastoCreado.id)
+              console.log('Foto subida:', fotoPath)
+            } else {
+              console.log('Error subiendo foto:', storageErr.message)
+            }
+          } catch (fotoErr: any) {
+            console.log('Error foto:', fotoErr.message)
+          }
+        }
 
         await supabase.from('rendiciones').update({
           total_solicitado: supabase.rpc('incrementar_documentos', { org_id: telegramUser.organizacion_id, cantidad: 0 })
