@@ -502,10 +502,16 @@ export default function RendicionPage() {
                     </td>
                     {editable && (
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => eliminarGasto(g.id, g.total)}
-                          className="text-red-500 hover:text-red-700 text-xs font-medium">
-                          Eliminar
-                        </button>
+                        <div className="flex justify-end gap-3">
+                          <button onClick={() => router.push('/rendiciones/' + params.id + '/gasto/' + g.id)}
+                            className="text-blue-600 hover:text-blue-800 text-xs font-medium">
+                            Editar
+                          </button>
+                          <button onClick={() => eliminarGasto(g.id, g.total)}
+                            className="text-red-500 hover:text-red-700 text-xs font-medium">
+                            Eliminar
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
