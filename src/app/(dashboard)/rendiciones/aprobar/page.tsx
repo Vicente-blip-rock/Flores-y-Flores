@@ -99,8 +99,10 @@ export default function AprobarRendicionesPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/rendiciones')} className="text-gray-400 hover:text-gray-600">←</button>
-          <h1 className="text-lg font-bold text-gray-900">⏳ Rendiciones por aprobar</h1>
+          <button onClick={() => router.push('/rendiciones')} className="text-gray-400 hover:text-gray-600">
+            &larr;
+          </button>
+          <h1 className="text-lg font-bold text-gray-900">Rendiciones por aprobar</h1>
         </div>
       </nav>
 
@@ -120,9 +122,7 @@ export default function AprobarRendicionesPage() {
                   <div
                     key={r.id}
                     onClick={() => seleccionarRendicion(r)}
-                    className={`bg-white rounded-xl p-4 cursor-pointer border-2 transition ${
-                      rendicionActiva?.id === r.id ? 'border-blue-500 shadow-md' : 'border-transparent hover:border-gray-200 shadow-sm'
-                    }`}
+                    className={'bg-white rounded-xl p-4 cursor-pointer border-2 transition ' + (rendicionActiva?.id === r.id ? 'border-blue-500 shadow-md' : 'border-transparent hover:border-gray-200 shadow-sm')}
                   >
                     <div className="flex justify-between items-start">
                       <div>
@@ -138,7 +138,7 @@ export default function AprobarRendicionesPage() {
                       {new Date(r.created_at).toLocaleDateString('es-CL')}
                     </p>
                     {r.observaciones && (
-                      <p className="text-xs text-gray-500 mt-1 italic>">"{r.observaciones}"</p>quot;{r.observaciones}">"{r.observaciones}"</p>quot;</p>
+                      <p className="text-xs text-gray-500 mt-1 italic">{r.observaciones}</p>
                     )}
                   </div>
                 ))}
@@ -158,7 +158,7 @@ export default function AprobarRendicionesPage() {
                         <h3 className="font-bold text-gray-900">{rendicionActiva.numero}</h3>
                         <p className="text-sm text-gray-500">
                           {rendicionActiva.rendidor?.nombre}
-                          {rendicionActiva.proyectos?.nombre ? ' · ' + rendicionActiva.proyectos.nombre : ''}
+                          {rendicionActiva.proyectos?.nombre ? ' - ' + rendicionActiva.proyectos.nombre : ''}
                         </p>
                       </div>
                       <p className="text-xl font-bold text-gray-900">{formatNum(rendicionActiva.total_solicitado)}</p>
@@ -167,7 +167,7 @@ export default function AprobarRendicionesPage() {
 
                   <div className="divide-y">
                     {gastos.map(g => (
-                      <div key={g.id} className={`px-6 py-4 ${g.estado === 'rechazado' ? 'bg-red-50' : g.estado === 'aprobado' ? 'bg-green-50' : ''}`}>
+                      <div key={g.id} className={'px-6 py-4 ' + (g.estado === 'rechazado' ? 'bg-red-50' : g.estado === 'aprobado' ? 'bg-green-50' : '')}>
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
@@ -179,14 +179,14 @@ export default function AprobarRendicionesPage() {
                               )}
                             </div>
                             <p className="text-xs text-gray-500 mt-0.5">
-                              {g.tipo_doc} {g.folio ? '#' + g.folio : ''} · {g.fecha}
+                              {g.tipo_doc} {g.folio ? '#' + g.folio : ''} - {g.fecha}
                             </p>
                             {g.concepto && <p className="text-xs text-gray-600 mt-1">{g.concepto}</p>}
                           </div>
                           <div className="flex items-center gap-3 ml-4">
                             {g.imagen_url && (
                               <button onClick={() => verFoto(g.imagen_url)}
-                                className="text-blue-600 hover:text-blue-800 text-sm" title="Ver comprobante">
+                                className="text-blue-600 hover:text-blue-800 text-sm">
                                 📄
                               </button>
                             )}
@@ -195,16 +195,16 @@ export default function AprobarRendicionesPage() {
                               <div className="flex gap-1">
                                 <button onClick={() => aprobarGasto(g.id)}
                                   className="bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1 rounded text-xs font-medium">
-                                  ✓
+                                  OK
                                 </button>
                                 <button onClick={() => rechazarGasto(g.id)}
                                   className="bg-red-100 text-red-700 hover:bg-red-200 px-2 py-1 rounded text-xs font-medium">
-                                  ✗
+                                  No
                                 </button>
                               </div>
                             )}
-                            {g.estado === 'aprobado' && <span className="text-green-600 text-xs font-medium">✓ Aprobado</span>}
-                            {g.estado === 'rechazado' && <span className="text-red-600 text-xs font-medium">✗ Rechazado</span>}
+                            {g.estado === 'aprobado' && <span className="text-green-600 text-xs font-medium">Aprobado</span>}
+                            {g.estado === 'rechazado' && <span className="text-red-600 text-xs font-medium">Rechazado</span>}
                           </div>
                         </div>
                       </div>
@@ -214,7 +214,7 @@ export default function AprobarRendicionesPage() {
                   <div className="px-6 py-4 border-t bg-gray-50">
                     <div className="mb-3">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Comentario {rendicionActiva ? '(obligatorio si rechazas)' : ''}
+                        Comentario (obligatorio si rechazas)
                       </label>
                       <textarea
                         value={comentario}
@@ -230,14 +230,14 @@ export default function AprobarRendicionesPage() {
                         disabled={procesando}
                         className="flex-1 bg-green-600 text-white py-2 rounded-xl font-medium hover:bg-green-700 transition disabled:opacity-50 text-sm"
                       >
-                        ✅ Aprobar rendicion completa
+                        Aprobar rendicion
                       </button>
                       <button
                         onClick={rechazarRendicion}
                         disabled={procesando}
                         className="flex-1 bg-red-500 text-white py-2 rounded-xl font-medium hover:bg-red-600 transition disabled:opacity-50 text-sm"
                       >
-                        ❌ Rechazar rendicion
+                        Rechazar rendicion
                       </button>
                     </div>
                   </div>
