@@ -26,7 +26,7 @@ export default function DashboardPage() {
       if (!session) { router.push('/login'); return }
 
       const { data: sa } = await supabase
-        .from('super_admins').select('id').eq('id', session.user.id).single()
+        .from('super_admins').select('id').eq('id', session.user.id).maybeSingle()
       setIsSuperAdmin(!!sa)
 
       const { data } = await supabase.from('clientes').select('*').order('nombre')
