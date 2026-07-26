@@ -123,8 +123,12 @@ export async function POST(req: NextRequest) {
       const rutPattern = /^\d{7,8}-[\dkK]$/i
       if (rutPattern.test(rutClean)) {
         const rut = text.trim()
+        const rutNormalizado = rut.replace(/\./g, '')
         const { data: cliente } = await supabase
-          .from('clientes').select('id, nombre, organizacion_id').eq('rut', rut).single()
+          .from('clientes').select('id, nombre, organizacion_id')
+          .or('rut.eq.' + rut + ',rut.eq.' + rutNormalizado)
+          .limit(1)
+          .maybeSingle()
 
         if (!cliente) {
           await sendMessage(chatId, 'No encontre ninguna empresa con el RUT <b>' + rut + '</b>.\n\nVerifica e intenta de nuevo.')
