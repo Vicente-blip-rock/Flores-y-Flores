@@ -488,7 +488,34 @@ export default function ClientePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div
+            className="bg-blue-50 border border-blue-200 rounded-2xl p-5 cursor-pointer hover:bg-blue-100 transition"
+            onClick={() => {}}
+          >
+            <div className="text-2xl mb-2">📊</div>
+            <h3 className="font-medium text-blue-900">Contabilidad</h3>
+            <p className="text-blue-600 text-xs mt-1">Libros SII, clasificacion, F29</p>
+          </div>
+          <div
+            className="bg-orange-50 border border-orange-200 rounded-2xl p-5 cursor-pointer hover:bg-orange-100 transition"
+            onClick={() => router.push('/rendiciones?cliente=' + params.id)}
+          >
+            <div className="text-2xl mb-2">📋</div>
+            <h3 className="font-medium text-orange-900">Rendiciones</h3>
+            <p className="text-orange-600 text-xs mt-1">Control de gastos y comprobantes</p>
+          </div>
+          <div
+            className="bg-gray-50 border border-gray-200 rounded-2xl p-5 cursor-pointer hover:bg-gray-100 transition"
+            onClick={() => router.push('/clientes/' + params.id + '/cuentas')}
+          >
+            <div className="text-2xl mb-2">⚙️</div>
+            <h3 className="font-medium text-gray-700">Configuracion</h3>
+            <p className="text-gray-500 text-xs mt-1">Plan de cuentas, proyectos</p>
+          </div>
+        </div>
+
+        <div id="contabilidad" className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h3 className="font-medium text-gray-900 mb-4">📥 Libro de Compras SII</h3>
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-blue-400 transition">
