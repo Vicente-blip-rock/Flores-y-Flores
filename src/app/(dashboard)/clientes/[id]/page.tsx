@@ -499,8 +499,8 @@ export default function ClientePage() {
             <p className="text-blue-600 text-xs mt-1">Libros SII, clasificacion, F29</p>
           </div>
           <div
-            className={'border rounded-2xl p-5 cursor-pointer transition ' + (moduloActivo === 'rendiciones' ? 'bg-orange-100 border-orange-400' : 'bg-orange-50 border-orange-200 hover:bg-orange-100')}
-            onClick={() => setModuloActivo(moduloActivo === 'rendiciones' ? null : 'rendiciones')}
+            className="bg-orange-50 border border-orange-200 rounded-2xl p-5 cursor-pointer hover:bg-orange-100 transition"
+            onClick={() => router.push('/rendiciones?cliente=' + params.id)}
           >
             <div className="text-2xl mb-2">📋</div>
             <h3 className="font-medium text-orange-900">Rendiciones</h3>
