@@ -9,6 +9,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [usuario, setUsuario] = useState<any>(null)
+  const [showMenu, setShowMenu] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -61,21 +62,52 @@ export default function DashboardPage() {
       <nav style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: '960px', margin: '0 auto', padding: '0 24px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '17px', fontWeight: 600, color: '#1D1D1F', letterSpacing: '-0.3px' }}>ContAI</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {isSuperAdmin && (
-              <button onClick={() => router.push('/admin')}
-                style={{ fontSize: '13px', color: '#6E6E73', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px' }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                style={{ fontSize: '13px', color: '#6E6E73', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}
                 onMouseOver={e => (e.currentTarget.style.background = '#F5F5F7')}
                 onMouseOut={e => (e.currentTarget.style.background = 'none')}>
-                Admin
+                Herramientas
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                  <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </button>
-            )}
-            <button onClick={handleLogout}
-              style={{ fontSize: '13px', color: '#6E6E73', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px' }}
-              onMouseOver={e => (e.currentTarget.style.background = '#F5F5F7')}
-              onMouseOut={e => (e.currentTarget.style.background = 'none')}>
-              Salir
-            </button>
+              {showMenu && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '36px', background: '#fff',
+                  borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                  padding: '6px', minWidth: '180px', zIndex: 100,
+                  border: '1px solid rgba(0,0,0,0.08)'
+                }}>
+                  <button
+                    onClick={() => { setShowMenu(false); router.push('/carga-masiva') }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '14px', color: '#1D1D1F', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '8px' }}
+                    onMouseOver={e => (e.currentTarget.style.background = '#F5F5F7')}
+                    onMouseOut={e => (e.currentTarget.style.background = 'none')}>
+                    📂 Carga masiva
+                  </button>
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => { setShowMenu(false); router.push('/admin') }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '14px', color: '#1D1D1F', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '8px' }}
+                      onMouseOver={e => (e.currentTarget.style.background = '#F5F5F7')}
+                      onMouseOut={e => (e.currentTarget.style.background = 'none')}>
+                      ⚙️ Panel Admin
+                    </button>
+                  )}
+                  <div style={{ height: '1px', background: 'rgba(0,0,0,0.06)', margin: '4px 0' }} />
+                  <button
+                    onClick={() => { setShowMenu(false); handleLogout() }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '14px', color: '#FF3B30', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '8px' }}
+                    onMouseOver={e => (e.currentTarget.style.background = '#FFF5F5')}
+                    onMouseOut={e => (e.currentTarget.style.background = 'none')}>
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
