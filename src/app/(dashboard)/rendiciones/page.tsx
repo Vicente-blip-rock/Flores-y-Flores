@@ -22,7 +22,7 @@ export default function RendicionesPage() {
 
       const { data } = await supabase
         .from('rendiciones')
-        .select('*, proyectos(nombre), rendidor:rendidor_id(nombre)')
+        .select('*, proyectos(nombre), rendidor:rendidor_id(nombre), clientes(nombre)')
         .order('created_at', { ascending: false })
       setRendiciones(data || [])
       setLoading(false)
@@ -30,25 +30,21 @@ export default function RendicionesPage() {
     cargar()
   }, [])
 
-  const estadoColor: Record<string, string> = {
-    borrador: 'bg-gray-100 text-gray-600',
-    enviada: 'bg-blue-100 text-blue-700',
-    aprobada: 'bg-green-100 text-green-700',
-    rechazada: 'bg-red-100 text-red-700',
-    pagada: 'bg-purple-100 text-purple-700',
-    cerrada: 'bg-gray-200 text-gray-500',
+  const estadoConfig: Record<string, { label: string, color: string, emoji: string }> = {
+    borrador:  { label: 'Borrador',           color: 'bg-gray-100 text-gray-600',    emoji: '📝' },
+    enviada:   { label: 'Esperando aprobacion', color: 'bg-blue-100 text-blue-700',  emoji: '⏳' },
+    aprobada:  { label: 'Aprobada',            color: 'bg-green-100 text-green-700', emoji: '✅' },
+    rechazada: { label: 'Rechazada',           color: 'bg-red-100 text-red-700',     emoji: '❌' },
+    pagada:    { label: 'Pagada',              color: 'bg-purple-100 text-purple-700', emoji: '💰' },
+    cerrada:   { label: 'Cerrada',             color: 'bg-gray-200 text-gray-500',   emoji: '🔒' },
   }
 
   const formatNum = (n: number) =>
     n?.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) || '$0'
 
-  const resumen = {
-    total: rendiciones.length,
-    borrador: rendiciones.filter(r => r.estado === 'borrador').length,
-    enviada: rendiciones.filter(r => r.estado === 'enviada').length,
-    aprobada: rendiciones.filter(r => r.estado === 'aprobada').length,
-    monto_total: rendiciones.reduce((s, r) => s + (r.total_solicitado || 0), 0),
-  }
+  const pendientes = rendiciones.filter(r => r.estado === 'enviada')
+  const enProceso = rendiciones.filter(r => ['borrador', 'aprobada'].includes(r.estado))
+  const montoTotal = rendiciones.filter(r => r.estado !== 'rechazada').reduce((s, r) => s + (r.total_solicitado || 0), 0)
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -59,104 +55,99 @@ export default function RendicionesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b px-6 py-4 flex justify-between items-center">
-        <h1 className="text-lg font-bold text-gray-900">ContAI</h1>
-        <div className="flex gap-3 items-center">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Dashboard
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push('/dashboard')} className="text-gray-400 hover:text-gray-600">
+            ←
           </button>
-          <button
-            onClick={() => router.push('/rendiciones/nueva')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-          >
-            + Nueva rendicion
-          </button>
+          <h1 className="text-lg font-bold text-gray-900">💼 Rendiciones de Gastos</h1>
         </div>
+        <button
+          onClick={() => router.push('/rendiciones/nueva')}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+        >
+          + Nueva rendicion
+        </button>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Rendiciones de Gastos</h2>
-          <p className="text-gray-500 text-sm mt-1">Gestiona y controla las rendiciones de tu equipo</p>
-        </div>
+      <main className="max-w-5xl mx-auto px-6 py-8">
 
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        {pendientes.length > 0 && (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl px-6 py-4 mb-6 flex justify-between items-center">
+            <div>
+              <p className="font-medium text-orange-800">⏳ Tienes {pendientes.length} rendicion{pendientes.length > 1 ? 'es' : ''} esperando tu aprobacion</p>
+              <p className="text-orange-600 text-sm mt-0.5">Revísalas para que tus empleados reciban su reembolso</p>
+            </div>
+            <button
+              onClick={() => {}}
+              className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition"
+            >
+              Ver pendientes
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <p className="text-sm text-gray-500">Total rendiciones</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{resumen.total}</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">{rendiciones.length}</p>
           </div>
           <div className="bg-white rounded-2xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">En borrador</p>
-            <p className="text-2xl font-bold text-gray-500 mt-1">{resumen.borrador}</p>
-          </div>
-          <div className="bg-white rounded-2xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Pendientes aprobacion</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">{resumen.enviada}</p>
+            <p className="text-sm text-gray-500">Pendientes de aprobacion</p>
+            <p className="text-3xl font-bold text-orange-500 mt-1">{pendientes.length}</p>
           </div>
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <p className="text-sm text-gray-500">Monto total</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">{formatNum(resumen.monto_total)}</p>
+            <p className="text-2xl font-bold text-green-600 mt-1">{formatNum(montoTotal)}</p>
           </div>
         </div>
 
         {rendiciones.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center">
-            <p className="text-4xl mb-4">📋</p>
-            <p className="text-gray-400 text-lg">No hay rendiciones aun</p>
-            <p className="text-gray-400 text-sm mt-1">Crea tu primera rendicion para comenzar</p>
+          <div className="bg-white rounded-2xl p-16 text-center shadow-sm">
+            <p className="text-5xl mb-4">📋</p>
+            <p className="text-gray-700 text-lg font-medium">No hay rendiciones aun</p>
+            <p className="text-gray-400 text-sm mt-2 mb-6">Crea tu primera rendicion para empezar a controlar los gastos de tu equipo</p>
             <button
               onClick={() => router.push('/rendiciones/nueva')}
-              className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition"
             >
-              + Nueva rendicion
+              + Crear primera rendicion
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-6 py-3 font-medium text-gray-500">ID</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Rendidor</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Proyecto</th>
-                  <th className="text-center px-4 py-3 font-medium text-gray-500">Docs</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-500">Solicitado</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-500">Aprobado</th>
-                  <th className="text-center px-4 py-3 font-medium text-gray-500">Estado</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {rendiciones.map(r => (
-                  <tr key={r.id} className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 font-medium text-blue-600 cursor-pointer hover:text-blue-800"
-                      onClick={() => router.push('/rendiciones/' + r.id)}>
-                      {r.numero}
-                    </td>
-                    <td className="px-4 py-4 text-gray-700">{r.rendidor?.nombre || '-'}</td>
-                    <td className="px-4 py-4 text-gray-500">{r.proyectos?.nombre || '-'}</td>
-                    <td className="px-4 py-4 text-center text-gray-600">{r.total_documentos || 0}</td>
-                    <td className="px-4 py-4 text-right text-gray-700">{formatNum(r.total_solicitado)}</td>
-                    <td className="px-4 py-4 text-right text-green-600 font-medium">{formatNum(r.total_aprobado)}</td>
-                    <td className="px-4 py-4 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${estadoColor[r.estado] || 'bg-gray-100 text-gray-600'}`}>
-                        {r.estado.charAt(0).toUpperCase() + r.estado.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <button
-                        onClick={() => router.push('/rendiciones/' + r.id)}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        Ver →
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {rendiciones.map(r => {
+              const cfg = estadoConfig[r.estado] || estadoConfig.borrador
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => router.push('/rendiciones/' + r.id)}
+                  className="bg-white rounded-2xl px-6 py-4 shadow-sm hover:shadow-md transition cursor-pointer flex justify-between items-center"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="text-2xl">{cfg.emoji}</div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900">{r.numero}</p>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {r.rendidor?.nombre || 'Sin rendidor'} 
+                        {r.clientes?.nombre ? ' · ' + r.clientes.nombre : ''}
+                        {r.proyectos?.nombre ? ' · ' + r.proyectos.nombre : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">{formatNum(r.total_solicitado || 0)}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date(r.created_at).toLocaleDateString('es-CL')}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </main>
