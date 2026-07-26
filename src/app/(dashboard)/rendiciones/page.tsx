@@ -78,7 +78,7 @@ export default function RendicionesPage() {
               <p className="text-orange-600 text-sm mt-0.5">Revísalas para que tus empleados reciban su reembolso</p>
             </div>
             <button
-              onClick={() => {}}
+              onClick={() => router.push('/rendiciones/aprobar')}
               className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition"
             >
               Ver pendientes
