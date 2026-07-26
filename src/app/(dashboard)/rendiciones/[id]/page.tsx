@@ -76,35 +76,19 @@ export default function RendicionPage() {
     try {
       const reader = new FileReader()
       reader.onload = async (e) => {
-        const base64 = (e.target?.result as string).split(',')[1]
+        const dataUrl = e.target?.result as string
+        const base64 = dataUrl.split(',')[1]
         const mediaType = file.type || 'image/jpeg'
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await fetch('/api/ocr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 1000,
-            messages: [{
-              role: 'user',
-              content: [
-                {
-                  type: 'image',
-                  source: { type: 'base64', media_type: mediaType, data: base64 }
-                },
-                {
-                  type: 'text',
-                  text: 'Extrae los datos de este comprobante chileno (boleta, factura o ticket). Responde SOLO con JSON sin texto adicional ni backticks:\n{"proveedor": "", "rut_proveedor": "", "tipo_doc": "Boleta", "folio": "", "fecha": "YYYY-MM-DD", "neto": 0, "iva": 0, "total": 0, "concepto": ""}'
-                }
-              ]
-            }]
-          })
+          body: JSON.stringify({ base64, mediaType })
         })
 
         const data = await response.json()
-        const content = data.content?.[0]?.text || '{}'
-        const clean = content.replace(/```json|```/g, '').trim()
-        const datos = JSON.parse(clean)
+        if (!data.ok) throw new Error(data.error)
+        const datos = data.datos
 
         setForm(prev => ({
           ...prev,
@@ -118,13 +102,13 @@ export default function RendicionPage() {
           total: datos.total?.toString() || '',
           concepto: datos.concepto || '',
         }))
-        setMensaje('Datos extraidos correctamente')
+        setMensaje('✅ Datos extraidos correctamente — revisa y confirma')
         setShowNuevoGasto(true)
         setProcesandoIA(false)
       }
       reader.readAsDataURL(file)
-    } catch {
-      setMensaje('Error al procesar imagen')
+    } catch (err: any) {
+      setMensaje('Error al procesar imagen: ' + err.message)
       setProcesandoIA(false)
     }
   }
