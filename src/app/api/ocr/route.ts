@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     })
 
     const data = await response.json()
+    console.log('Anthropic response:', JSON.stringify(data).substring(0, 500))
     const content = data.content?.[0]?.text || '{}'
     const clean = content.replace(/```json|```/g, '').trim()
     const datos = JSON.parse(clean)
