@@ -220,7 +220,8 @@ export async function POST(req: NextRequest) {
         }
 
         const total = datos.total || 0
-        await supabase.from('gastos_rendicion').insert({
+        console.log('Guardando gasto en rendicion:', rendicion?.id, 'org:', telegramUser.organizacion_id)
+        const { error: gastoErr } = await supabase.from('gastos_rendicion').insert({
           rendicion_id: rendicion?.id,
           organizacion_id: telegramUser.organizacion_id,
           fecha: datos.fecha || ahora.toISOString().split('T')[0],
@@ -236,6 +237,7 @@ export async function POST(req: NextRequest) {
           estado: 'borrador',
           procesado_por_ia: true
         })
+        console.log('Gasto error:', gastoErr?.message)
 
         await supabase.from('rendiciones').update({
           total_solicitado: supabase.rpc('incrementar_documentos', { org_id: telegramUser.organizacion_id, cantidad: 0 })
