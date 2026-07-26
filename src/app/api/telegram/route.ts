@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
     const telegramId = message.from.id
     const username = message.from.first_name || 'Usuario'
     const text = message.text || ''
+    console.log('text:', JSON.stringify(text), 'has photo:', !!message.photo)
 
     const { data: telegramUser, error: tuError } = await supabase
       .from('telegram_usuarios').select('*, clientes(nombre, rut, rubro, organizacion_id)').eq('telegram_id', telegramId).maybeSingle()
