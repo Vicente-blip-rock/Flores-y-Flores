@@ -41,11 +41,17 @@ export default function AsientosPage() {
   }, [])
 
   const cargarAsientos = async (periodoId: string) => {
-    const { data } = await supabase
+    let query = supabase
       .from('asientos')
       .select('*, lineas_asiento(*, cuenta_nombre, cuenta_codigo, debe, haber)')
-      .eq('periodo_id', periodoId)
+      .eq('cliente_id', params.id)
       .order('numero')
+    
+    if (periodoId !== 'todos') {
+      query = query.eq('periodo_id', periodoId)
+    }
+    
+    const { data } = await query
     setAsientos(data || [])
   }
 
@@ -235,6 +241,7 @@ export default function AsientosPage() {
             onChange={async e => { setPeriodoSeleccionado(e.target.value); await cargarAsientos(e.target.value) }}
             className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
+            <option value="todos">Todos los periodos</option>
             {periodos.map(p => (
               <option key={p.id} value={p.id}>{meses[p.mes]} {p.anio}</option>
             ))}
