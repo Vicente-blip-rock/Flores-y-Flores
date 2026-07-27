@@ -454,8 +454,8 @@ export default function RendicionPage() {
             {editable && (
               <div className="flex gap-2">
                 <label className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition cursor-pointer flex items-center gap-2">
-                  {procesandoIA ? '⏳ Procesando...' : '📷 Subir foto'}
-                  <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={handleImagen} className="hidden" />
+                  {procesandoIA ? '⏳ Procesando...' : '📷 Foto o PDF'}
+                  <input ref={fileRef} type="file" accept="image/*,.pdf,application/pdf" onChange={handleImagen} className="hidden" />
                 </label>
                 <button
                   onClick={() => setShowNuevoGasto(!showNuevoGasto)}

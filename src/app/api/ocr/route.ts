@@ -7,6 +7,10 @@ export async function POST(req: NextRequest) {
   try {
     const { base64, mediaType } = await req.json()
 
+    // Si es PDF convertir a imagen usando la URL de datos
+    const esPDF = mediaType === 'application/pdf'
+    const urlDatos = `data:${mediaType};base64,${base64}`
+
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       max_tokens: 1000,
@@ -15,7 +19,7 @@ export async function POST(req: NextRequest) {
         content: [
           {
             type: 'image_url',
-            image_url: { url: `data:${mediaType};base64,${base64}` }
+            image_url: { url: urlDatos }
           },
           {
             type: 'text',
