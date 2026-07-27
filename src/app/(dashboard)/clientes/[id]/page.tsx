@@ -515,6 +515,14 @@ export default function ClientePage() {
             <p className="text-indigo-600 text-xs mt-1">Libro diario, mayor y balanza</p>
           </div>
           <div
+            className="bg-teal-50 border border-teal-200 rounded-2xl p-5 cursor-pointer hover:bg-teal-100 transition"
+            onClick={() => router.push('/clientes/' + params.id + '/conciliacion')}
+          >
+            <div className="text-2xl mb-2">🏦</div>
+            <h3 className="font-medium text-teal-900">Conciliacion Bancaria</h3>
+            <p className="text-teal-600 text-xs mt-1">Cruza cartola con asientos</p>
+          </div>
+          <div
             className={'border rounded-2xl p-5 cursor-pointer transition ' + (moduloActivo === 'configuracion' ? 'bg-gray-100 border-gray-400' : 'bg-gray-50 border-gray-200 hover:bg-gray-100')}
             onClick={() => router.push('/clientes/' + params.id + '/cuentas')}
           >
