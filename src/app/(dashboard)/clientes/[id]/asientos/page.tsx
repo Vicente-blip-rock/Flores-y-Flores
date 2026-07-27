@@ -66,6 +66,30 @@ export default function AsientosPage() {
       return
     }
 
+    // Verificar si ya existen asientos SII para este periodo
+    const { data: asientosExistentes } = await supabase
+      .from('asientos')
+      .select('id')
+      .eq('periodo_id', periodoSeleccionado)
+      .eq('origen', 'sii')
+      .limit(1)
+
+    if (asientosExistentes && asientosExistentes.length > 0) {
+      if (!confirm('Ya existen asientos generados desde el SII para este periodo. ¿Deseas eliminarlos y regenerar?')) {
+        setGenerando(false)
+        return
+      }
+      // Eliminar asientos SII existentes
+      const { data: asientosSII } = await supabase
+        .from('asientos').select('id').eq('periodo_id', periodoSeleccionado).eq('origen', 'sii')
+      if (asientosSII) {
+        for (const a of asientosSII) {
+          await supabase.from('lineas_asiento').delete().eq('asiento_id', a.id)
+        }
+        await supabase.from('asientos').delete().eq('periodo_id', periodoSeleccionado).eq('origen', 'sii')
+      }
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
     const { data: usuarioData } = await supabase
       .from('usuarios').select('organizacion_id').eq('id', user?.id).single()
