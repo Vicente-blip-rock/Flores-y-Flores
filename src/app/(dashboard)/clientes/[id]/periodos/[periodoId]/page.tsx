@@ -488,6 +488,14 @@ export default function PeriodoPage() {
                         <div>
                           <span className="text-green-600 text-xs font-medium">✓ Pagada</span>
                           <p className="text-gray-400 text-xs">{f.fecha_pago}</p>
+                          <button
+                            onClick={() => {
+                              setFormPago({ fecha_pago: f.fecha_pago || new Date().toISOString().split('T')[0], medio_pago: f.medio_pago || 'Transferencia', banco: f.banco || '' })
+                              setPagando(f.id)
+                            }}
+                            className="text-xs text-gray-400 hover:text-gray-600 underline mt-1 block">
+                            Editar
+                          </button>
                         </div>
                       ) : (
                         <button onClick={() => setPagando(f.id)}
