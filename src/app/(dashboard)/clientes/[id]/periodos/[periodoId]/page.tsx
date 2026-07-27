@@ -13,6 +13,8 @@ export default function PeriodoPage() {
   const [clasificando, setClasificando] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [editando, setEditando] = useState<string | null>(null)
+  const [pagando, setPagando] = useState<string | null>(null)
+  const [formPago, setFormPago] = useState({ fecha_pago: new Date().toISOString().split('T')[0], medio_pago: 'Transferencia', banco: '' })
   const [pestana, setPestana] = useState<'compras' | 'ventas'>('compras')
   const [ventas, setVentas] = useState<any[]>([])
   const [busquedaCuenta, setBusquedaCuenta] = useState('')
@@ -151,6 +153,44 @@ export default function PeriodoPage() {
     const total = conHistorial.length + clasificadasIA
     setMensaje('Listo: ' + conHistorial.length + ' con historial + ' + clasificadasIA + ' con IA = ' + total + ' clasificadas')
     setClasificando(false)
+  }
+
+  const marcarPagada = async (facturaId: string) => {
+    await supabase.from('facturas').update({
+      estado_pago: 'pagada',
+      fecha_pago: formPago.fecha_pago,
+      medio_pago: formPago.medio_pago,
+      banco: formPago.banco
+    }).eq('id', facturaId)
+    setFacturas(prev => prev.map(f => f.id === facturaId ? { ...f, estado_pago: 'pagada', fecha_pago: formPago.fecha_pago, medio_pago: formPago.medio_pago } : f))
+    setPagando(null)
+
+    // Generar asiento de pago automatico
+    const factura = facturas.find(f => f.id === facturaId)
+    if (factura) {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: usuarioData } = await supabase.from('usuarios').select('organizacion_id').eq('id', user?.id).single()
+      const { data: numData } = await supabase.rpc('siguiente_numero_asiento', { p_cliente_id: params.id })
+      const { data: asiento } = await supabase.from('asientos').insert({
+        organizacion_id: usuarioData?.organizacion_id,
+        cliente_id: params.id,
+        periodo_id: params.periodoId,
+        numero: numData || 1,
+        fecha: formPago.fecha_pago,
+        glosa: 'Pago ' + factura.razon_social + ' Fol.' + factura.folio,
+        estado: 'borrador',
+        origen: 'manual',
+        total_debe: factura.total,
+        total_haber: factura.total,
+        cuadrado: true
+      }).select().single()
+      if (asiento) {
+        await supabase.from('lineas_asiento').insert([
+          { asiento_id: asiento.id, cuenta_nombre: factura.razon_social, debe: factura.total, haber: 0, glosa_linea: 'Pago proveedor', orden: 1 },
+          { asiento_id: asiento.id, cuenta_nombre: formPago.banco || 'BANCO', debe: 0, haber: factura.total, glosa_linea: 'Salida banco', orden: 2 }
+        ])
+      }
+    }
   }
 
   const cambiarCuenta = async (facturaId: string, cuenta: string) => {
@@ -325,6 +365,7 @@ export default function PeriodoPage() {
                   <th className="text-right px-4 py-3 font-medium text-gray-500">IVA</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-500">Total</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Cuenta</th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-500">Pago</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -394,6 +435,41 @@ export default function PeriodoPage() {
                               + Asignar cuenta
                             </span>
                           )}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {pagando === f.id ? (
+                        <div className="flex flex-col gap-1 items-start">
+                          <input type="date" value={formPago.fecha_pago}
+                            onChange={e => setFormPago({ ...formPago, fecha_pago: e.target.value })}
+                            className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 w-28" />
+                          <select value={formPago.medio_pago}
+                            onChange={e => setFormPago({ ...formPago, medio_pago: e.target.value })}
+                            className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 w-28">
+                            <option>Transferencia</option>
+                            <option>Cheque</option>
+                            <option>Efectivo</option>
+                          </select>
+                          <input placeholder="Banco" value={formPago.banco}
+                            onChange={e => setFormPago({ ...formPago, banco: e.target.value })}
+                            className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 w-28" />
+                          <div className="flex gap-1">
+                            <button onClick={() => marcarPagada(f.id)}
+                              className="bg-green-600 text-white text-xs px-2 py-1 rounded font-medium">OK</button>
+                            <button onClick={() => setPagando(null)}
+                              className="text-gray-400 text-xs px-2 py-1">✕</button>
+                          </div>
+                        </div>
+                      ) : f.estado_pago === 'pagada' ? (
+                        <div>
+                          <span className="text-green-600 text-xs font-medium">✓ Pagada</span>
+                          <p className="text-gray-400 text-xs">{f.fecha_pago}</p>
+                        </div>
+                      ) : (
+                        <button onClick={() => setPagando(f.id)}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-medium underline">
+                          Marcar pagada
                         </button>
                       )}
                     </td>
