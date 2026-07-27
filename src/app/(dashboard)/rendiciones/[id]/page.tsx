@@ -225,7 +225,123 @@ export default function RendicionPage() {
 
   const cambiarEstado = async (nuevoEstado: string) => {
     await supabase.from('rendiciones').update({ estado: nuevoEstado }).eq('id', params.id)
+
+    // Al aprobar, generar asiento contable automaticamente
+    if (nuevoEstado === 'aprobada' && gastos.length > 0) {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: usuarioData } = await supabase
+        .from('usuarios').select('organizacion_id').eq('id', user?.id).single()
+
+      const clienteId = rendicion?.cliente_id
+      if (clienteId) {
+        const { data: numData } = await supabase.rpc('siguiente_numero_asiento', { p_cliente_id: clienteId })
+        const totalRendicion = gastos.reduce((s, g) => s + (g.total || 0), 0)
+
+        const { data: asiento } = await supabase.from('asientos').insert({
+          organizacion_id: usuarioData?.organizacion_id,
+          cliente_id: clienteId,
+          periodo_id: null,
+          numero: numData || 1,
+          fecha: new Date().toISOString().split('T')[0],
+          glosa: 'Rendicion ' + rendicion?.numero + ' - ' + (rendicion?.rendidor?.nombre || ''),
+          estado: 'borrador',
+          origen: 'rendicion',
+          total_debe: totalRendicion,
+          total_haber: totalRendicion,
+          cuadrado: true
+        }).select().single()
+
+        if (asiento) {
+          const lineas: any[] = []
+
+          // Agregar una linea por categoria de gasto
+          const porCategoria: Record<string, number> = {}
+          gastos.forEach(g => {
+            const cat = g.categorias_gasto?.nombre || 'GTOS GENERALES'
+            porCategoria[cat] = (porCategoria[cat] || 0) + (g.total || 0)
+          })
+
+          let orden = 1
+          for (const [cat, monto] of Object.entries(porCategoria)) {
+            lineas.push({
+              asiento_id: asiento.id,
+              cuenta_nombre: cat,
+              debe: monto,
+              haber: 0,
+              glosa_linea: cat,
+              orden: orden++
+            })
+          }
+
+          // Haber: Cuentas por pagar socios
+          lineas.push({
+            asiento_id: asiento.id,
+            cuenta_nombre: 'CUENTAS POR PAGAR SOCIOS',
+            debe: 0,
+            haber: totalRendicion,
+            glosa_linea: 'Deuda con ' + (rendicion?.rendidor?.nombre || 'rendidor'),
+            orden: orden
+          })
+
+          await supabase.from('lineas_asiento').insert(lineas)
+          setMensaje('Rendicion aprobada — asiento contable generado automaticamente')
+        }
+      }
+    }
+
     await cargarDatos()
+  }
+
+  const registrarReembolso = async () => {
+    const banco = prompt('Cuenta bancaria desde donde se reembolsa (ej: MERCADO PAGO):')
+    if (!banco) return
+
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: usuarioData } = await supabase
+      .from('usuarios').select('organizacion_id').eq('id', user?.id).single()
+
+    const clienteId = rendicion?.cliente_id
+    if (!clienteId) return
+
+    const totalRendicion = gastos.reduce((s, g) => s + (g.total || 0), 0)
+    const { data: numData } = await supabase.rpc('siguiente_numero_asiento', { p_cliente_id: clienteId })
+
+    const { data: asiento } = await supabase.from('asientos').insert({
+      organizacion_id: usuarioData?.organizacion_id,
+      cliente_id: clienteId,
+      numero: numData || 1,
+      fecha: new Date().toISOString().split('T')[0],
+      glosa: 'Reembolso rendicion ' + rendicion?.numero + ' - ' + (rendicion?.rendidor?.nombre || ''),
+      estado: 'borrador',
+      origen: 'rendicion',
+      total_debe: totalRendicion,
+      total_haber: totalRendicion,
+      cuadrado: true
+    }).select().single()
+
+    if (asiento) {
+      await supabase.from('lineas_asiento').insert([
+        {
+          asiento_id: asiento.id,
+          cuenta_nombre: 'CUENTAS POR PAGAR SOCIOS',
+          debe: totalRendicion,
+          haber: 0,
+          glosa_linea: 'Pago deuda ' + (rendicion?.rendidor?.nombre || ''),
+          orden: 1
+        },
+        {
+          asiento_id: asiento.id,
+          cuenta_nombre: banco.toUpperCase(),
+          debe: 0,
+          haber: totalRendicion,
+          glosa_linea: 'Reembolso desde ' + banco,
+          orden: 2
+        }
+      ])
+      await supabase.from('rendiciones').update({ estado: 'pagada' }).eq('id', params.id)
+      await cargarDatos()
+      setMensaje('Reembolso registrado — asiento contable generado')
+    }
   }
 
   const eliminarGasto = async (gastoId: string, total: number) => {
@@ -287,7 +403,15 @@ export default function RendicionPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            {cfg.acciones.map(accion => (
+            {rendicion?.estado === 'aprobada' && (
+            <button
+              onClick={registrarReembolso}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition bg-green-600 text-white hover:bg-green-700"
+            >
+              💰 Registrar reembolso
+            </button>
+          )}
+          {cfg.acciones.map(accion => (
               <button
                 key={accion}
                 onClick={() => cambiarEstado(accionEstado[accion])}
