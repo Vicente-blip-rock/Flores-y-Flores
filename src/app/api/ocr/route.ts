@@ -10,8 +10,13 @@ export async function POST(req: NextRequest) {
     const { base64, mediaType } = await req.json()
     let content = '{}'
 
+    console.log('OCR request - mediaType:', mediaType, 'base64 length:', base64?.length)
     if (mediaType === 'application/pdf') {
+      console.log('Procesando PDF con Claude Haiku...')
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 30000)
       const response = await fetch('https://api.anthropic.com/v1/messages', {
+        signal: controller.signal,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -33,7 +38,9 @@ export async function POST(req: NextRequest) {
           }]
         })
       })
+      clearTimeout(timeout)
       const data = await response.json()
+      console.log('Claude response status:', response.status, 'data:', JSON.stringify(data).substring(0, 200))
       content = data.content?.[0]?.text || '{}'
     } else {
       const response = await openai.chat.completions.create({
