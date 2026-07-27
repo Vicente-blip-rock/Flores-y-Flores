@@ -153,7 +153,7 @@ export default function ConciliacionPage() {
 
   const handleCartola = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !banco || !cuentaBancaria) {
+    if (!file || !cuentaBancaria) {
       setMensaje('Completa el banco y número de cuenta antes de subir la cartola')
       return
     }
@@ -291,7 +291,7 @@ export default function ConciliacionPage() {
               <select value={banco} onChange={e => setBanco(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Seleccionar...</option>
-                {['BCI', 'Banco Estado', 'Santander', 'Scotiabank', 'Banco de Chile', 'Itaú', 'Banco Falabella', 'Banco Security', 'Otro'].map(b => (
+                {['BCI', 'Banco Estado', 'Santander', 'Scotiabank', 'Banco de Chile', 'Itaú', 'Banco Falabella', 'Banco Security', 'Mercado Pago', 'Otro'].map(b => (
                   <option key={b} value={b}>{b}</option>
                 ))}
               </select>
