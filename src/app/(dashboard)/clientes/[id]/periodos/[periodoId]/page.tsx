@@ -15,6 +15,7 @@ export default function PeriodoPage() {
   const [editando, setEditando] = useState<string | null>(null)
   const [pagando, setPagando] = useState<string | null>(null)
   const [formPago, setFormPago] = useState({ fecha_pago: new Date().toISOString().split('T')[0], medio_pago: 'Transferencia', banco: '' })
+  const [cuentasBanco, setCuentasBanco] = useState<string[]>([])
   const [pestana, setPestana] = useState<'compras' | 'ventas'>('compras')
   const [ventas, setVentas] = useState<any[]>([])
   const [busquedaCuenta, setBusquedaCuenta] = useState('')
@@ -39,6 +40,21 @@ export default function PeriodoPage() {
       const { data: facturasData } = await supabase
         .from('facturas').select('*').eq('periodo_id', params.periodoId).order('numero_linea')
       setFacturas(facturasData || [])
+
+      // Cargar cuentas del plan del cliente para selector de banco
+      const { data: cuentasClienteData } = await supabase
+        .from('plan_de_cuentas').select('nombre').eq('cliente_id', params.id).eq('activo', true)
+      const { data: cuentasBaseData } = await supabase
+        .from('plan_base').select('nombre').eq('activo', true)
+      const todasCuentas = [
+        ...(cuentasClienteData || []).map((c: any) => c.nombre),
+        ...(cuentasBaseData || []).map((c: any) => c.nombre)
+      ]
+      const bancosKeywords = ['banco', 'caja', 'efectivo', 'cta cte', 'cuenta corriente']
+      const cuentasBancoFiltradas = todasCuentas.filter(c =>
+        bancosKeywords.some(k => c.toLowerCase().includes(k))
+      )
+      setCuentasBanco(cuentasBancoFiltradas)
 
       const { data: ventasData } = await supabase
         .from('facturas_venta').select('*').eq('periodo_id', params.periodoId).order('numero_linea')
@@ -453,9 +469,14 @@ export default function PeriodoPage() {
                             <option>Cheque</option>
                             <option>Efectivo</option>
                           </select>
-                          <input placeholder="Banco" value={formPago.banco}
+                          <select value={formPago.banco}
                             onChange={e => setFormPago({ ...formPago, banco: e.target.value })}
-                            className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 w-28" />
+                            className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 w-28">
+                            <option value="">Seleccionar banco...</option>
+                            {cuentasBanco.map(c => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
                           <div className="flex gap-1">
                             <button onClick={() => marcarPagada(f.id)}
                               className="bg-green-600 text-white text-xs px-2 py-1 rounded font-medium">OK</button>
