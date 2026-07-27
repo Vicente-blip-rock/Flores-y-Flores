@@ -112,7 +112,21 @@ export default function RendicionPage() {
     setProcesandoIA(true)
     setMensaje('Procesando imagen con IA...')
     try {
-      const { blob, base64, mediaType } = await comprimirImagen(file)
+      let blob: Blob, base64: string, mediaType: string
+if (file.type === 'application/pdf') {
+  const arrayBuffer = await file.arrayBuffer()
+  const uint8Array = new Uint8Array(arrayBuffer)
+  let binary = ''
+  uint8Array.forEach(b => binary += String.fromCharCode(b))
+  base64 = btoa(binary)
+  mediaType = 'application/pdf'
+  blob = file
+} else {
+  const result = await comprimirImagen(file)
+  blob = result.blob
+  base64 = result.base64
+  mediaType = result.mediaType
+}
       
       const response = await fetch('/api/ocr', {
         method: 'POST',
