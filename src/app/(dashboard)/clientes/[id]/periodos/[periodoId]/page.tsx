@@ -448,6 +448,8 @@ export default function PeriodoPage() {
                             onChange={e => setFormPago({ ...formPago, medio_pago: e.target.value })}
                             className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 w-28">
                             <option>Transferencia</option>
+                            <option>Tarjeta debito</option>
+                            <option>Tarjeta credito</option>
                             <option>Cheque</option>
                             <option>Efectivo</option>
                           </select>
