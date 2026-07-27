@@ -77,9 +77,11 @@ export default function AsientosPage() {
       const { data: numData } = await supabase.rpc('siguiente_numero_asiento', { p_cliente_id: params.id })
       const numero = numData || 1
 
-      const totalDebe = factura.neto || 0
-      const totalHaber = factura.total || 0
+      const neto = factura.neto || 0
       const iva = factura.iva || 0
+      const exento = factura.exento || 0
+      const total = factura.total || 0
+      const totalDebe = neto + iva + exento
 
       const { data: asiento } = await supabase.from('asientos').insert({
         organizacion_id: usuarioData?.organizacion_id,
@@ -91,39 +93,55 @@ export default function AsientosPage() {
         estado: 'borrador',
         origen: 'sii',
         factura_id: factura.id,
-        total_debe: totalDebe + iva,
-        total_haber: totalHaber,
-        cuadrado: Math.abs((totalDebe + iva) - totalHaber) < 1
+        total_debe: totalDebe,
+        total_haber: total,
+        cuadrado: Math.abs(totalDebe - total) < 1
       }).select().single()
 
       if (asiento) {
-        await supabase.from('lineas_asiento').insert([
-          {
+        const lineas: any[] = []
+        if (neto > 0) {
+          lineas.push({
             asiento_id: asiento.id,
             cuenta_nombre: factura.tipo_compra || 'GASTO',
-            debe: totalDebe,
+            debe: neto,
             haber: 0,
             glosa_linea: 'Neto ' + factura.razon_social,
             orden: 1
-          },
-          {
+          })
+        }
+        if (iva > 0) {
+          lineas.push({
             asiento_id: asiento.id,
             cuenta_nombre: 'IVA CREDITO FISCAL',
             debe: iva,
             haber: 0,
-            glosa_linea: 'IVA factura',
+            glosa_linea: 'IVA credito fiscal',
             orden: 2
-          },
-          {
+          })
+        }
+        if (exento > 0) {
+          lineas.push({
             asiento_id: asiento.id,
-            cuenta_nombre: factura.razon_social,
-            debe: 0,
-            haber: totalHaber,
-            glosa_linea: 'Proveedor ' + factura.rut_proveedor,
+            cuenta_nombre: (factura.tipo_compra || 'GASTO') + ' EXENTO',
+            debe: exento,
+            haber: 0,
+            glosa_linea: 'Monto exento ' + factura.razon_social,
             orden: 3
-          }
-        ])
-        creados++
+          })
+        }
+        lineas.push({
+          asiento_id: asiento.id,
+          cuenta_nombre: factura.razon_social,
+          debe: 0,
+          haber: total,
+          glosa_linea: 'Proveedor ' + factura.rut_proveedor,
+          orden: 4
+        })
+        if (lineas.length > 1) {
+          await supabase.from('lineas_asiento').insert(lineas)
+          creados++
+        }
       }
     }
 
